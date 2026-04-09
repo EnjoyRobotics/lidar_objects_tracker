@@ -16,12 +16,14 @@ def generate_launch_description():
         parameters=[
             {'target_frame': 'odom'},
             {'cluster_neighbor_radius': 0.4},
-            {'cluster_min_points': 10},
-            {'cluster_max_points': 1000},
-            {'birth_existence_prob': 0.01},
-            {'survival_prob': 0.999},
-            {'detection_prob': 0.2},
-            {'kf_acc_uncertainty': 0.6},
+            {'cluster_min_points': 15},
+            {'cluster_max_points': 200},
+            {'lmb_tracker.birth_existence_prob': 0.01},
+            {'lmb_tracker.survival_prob': 0.999},
+            {'lmb_tracker.detection_prob': 0.05},
+            {'lmb_tracker.kf_pos_uncertainty': 0.2},
+            {'lmb_tracker.kf_vel_uncertainty': 0.4},
+            {'lmb_tracker.kf_acc_uncertainty': 1.0},
         ],
     )
 

@@ -49,29 +49,29 @@ struct UpdateInfo
 class LMBTracker
 {
 public:
-  LMBTracker(
-    rclcpp::Clock::SharedPtr clock,
-    float max_dt,
-    float gate_threshold,
-    float birth_existence_prob,
-    float death_existence_prob,
-    float survival_prob,
-    float detection_prob,
-    float kf_pos_uncertainty,
-    float kf_vel_uncertainty,
-    float kf_acc_uncertainty)
-  : clock_(clock),
-    last_update_time_(clock->now()),
-    max_dt_(max_dt),
-    gate_threshold_(gate_threshold),
-    birth_existence_prob_(birth_existence_prob),
-    death_existence_prob_(death_existence_prob),
-    survival_prob_(survival_prob),
-    detection_prob_(detection_prob),
-    kf_pos_uncertainty_(kf_pos_uncertainty),
-    kf_vel_uncertainty_(kf_vel_uncertainty),
-    kf_acc_uncertainty_(kf_acc_uncertainty)
-  {}
+  explicit LMBTracker(rclcpp::Node & node)
+  : clock_(node.get_clock()),
+    last_update_time_(node.get_clock()->now())
+  {
+    node.declare_parameter<double>("lmb_tracker.max_dt", 1.0);
+    node.declare_parameter<double>("lmb_tracker.gate_threshold", 6.0);
+    node.declare_parameter<double>("lmb_tracker.birth_existence_prob", 0.2);
+    node.declare_parameter<double>("lmb_tracker.death_existence_prob", 0.05);
+    node.declare_parameter<double>("lmb_tracker.survival_prob", 0.99);
+    node.declare_parameter<double>("lmb_tracker.detection_prob", 0.99);
+    node.declare_parameter<double>("lmb_tracker.kf_pos_uncertainty", 0.05);
+    node.declare_parameter<double>("lmb_tracker.kf_vel_uncertainty", 0.1);
+    node.declare_parameter<double>("lmb_tracker.kf_acc_uncertainty", 0.5);
+    max_dt_               = static_cast<float>(node.get_parameter("lmb_tracker.max_dt").as_double());
+    gate_threshold_       = static_cast<float>(node.get_parameter("lmb_tracker.gate_threshold").as_double());
+    birth_existence_prob_ = static_cast<float>(node.get_parameter("lmb_tracker.birth_existence_prob").as_double());
+    death_existence_prob_ = static_cast<float>(node.get_parameter("lmb_tracker.death_existence_prob").as_double());
+    survival_prob_        = static_cast<float>(node.get_parameter("lmb_tracker.survival_prob").as_double());
+    detection_prob_       = static_cast<float>(node.get_parameter("lmb_tracker.detection_prob").as_double());
+    kf_pos_uncertainty_   = static_cast<float>(node.get_parameter("lmb_tracker.kf_pos_uncertainty").as_double());
+    kf_vel_uncertainty_   = static_cast<float>(node.get_parameter("lmb_tracker.kf_vel_uncertainty").as_double());
+    kf_acc_uncertainty_   = static_cast<float>(node.get_parameter("lmb_tracker.kf_acc_uncertainty").as_double());
+  }
 
   UpdateInfo updateTracks(const std::vector<Eigen::Vector2f> & measurements)
   {
