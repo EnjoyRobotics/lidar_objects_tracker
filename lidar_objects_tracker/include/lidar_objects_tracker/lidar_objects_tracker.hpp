@@ -16,11 +16,13 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include "lidar_objects_tracker/lmb_tracker.hpp"
+#include "lidar_objects_tracker/static_background_subtractor.hpp"
 
 #include "tf2_ros/buffer.hpp"
 #include "tf2_ros/transform_listener.hpp"
 
 #include <sensor_msgs/msg/laser_scan.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include "lidar_objects_tracker_msgs/msg/tracked_object.hpp"
 #include "lidar_objects_tracker_msgs/msg/tracked_objects.hpp"
@@ -46,12 +48,15 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
   // TODO(redvinaa): publish static and dynamic scans?
 
+  std::unique_ptr<StaticBackgroundSubtractor> static_bg_subtractor_;
+
   tf2_ros::Buffer::SharedPtr tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
   rclcpp::Publisher<lidar_objects_tracker_msgs::msg::TrackedObjects>::SharedPtr
     tracked_objects_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr filtered_pcl_pub_;
 
   std::unique_ptr<LMBTracker> tracker_;
 
@@ -61,6 +66,8 @@ private:
   size_t cluster_min_points_;
   size_t cluster_max_points_;
   bool visualize_;
+  bool enable_static_bg_subtraction_;
+  bool publish_filtered_pcl_;
 };
 
 }  // namespace lidar_objects_tracker

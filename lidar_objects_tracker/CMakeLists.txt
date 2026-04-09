@@ -15,6 +15,7 @@ find_package(tf2_eigen REQUIRED)
 find_package(angles REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(lidar_objects_tracker_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 
 # Non-ROS dependency
 find_package(Open3D REQUIRED)
@@ -31,6 +32,7 @@ set(DEPS
   angles
   Eigen3
   lidar_objects_tracker_msgs
+  nav_msgs
   Open3D
 )
 
