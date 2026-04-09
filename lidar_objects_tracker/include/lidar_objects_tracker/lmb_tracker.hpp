@@ -15,38 +15,16 @@
 #include <memory>
 #include <Eigen/Core>
 #include "rclcpp/rclcpp.hpp"
-#include "lidar_objects_tracker/kalman_filter.hpp"
+#include "lidar_objects_tracker/tracker_base.hpp"
 
 namespace lidar_objects_tracker
 {
-
-struct Track
-{
-  std::shared_ptr<KalmanFilter2D> kf;
-  float existence_probability;
-};
-
-struct UpdateInfo
-{
-  // Global update info
-  float dt;
-  std::set<uint32_t> births;
-  std::set<uint32_t> deaths;
-
-  struct TrackUpdateInfo
-  {
-    std::map<size_t, float> measurement_weights;
-  };
-
-  // Per track update info
-  std::map<uint32_t, TrackUpdateInfo> updates;
-};
 
 /** @brief LMB Tracker for 2D point measurements
  *
  * Note: uint32_t is used for IDs, size_t for indices
  */
-class LMBTracker
+class LMBTracker : public TrackerBase
 {
 public:
   explicit LMBTracker(rclcpp::Node & node)
@@ -73,7 +51,7 @@ public:
     kf_acc_uncertainty_   = static_cast<float>(node.get_parameter("lmb_tracker.kf_acc_uncertainty").as_double());
   }
 
-  UpdateInfo updateTracks(const std::vector<Eigen::Vector2f> & measurements)
+  UpdateInfo updateTracks(const std::vector<Eigen::Vector2f> & measurements) override
   {
     UpdateInfo update_info;
 
@@ -199,7 +177,7 @@ public:
     return update_info;
   }
 
-  inline const std::map<uint32_t, Track> & getTracks() const
+  inline const std::map<uint32_t, Track> & getTracks() const override
   {
     return tracks_;
   }
