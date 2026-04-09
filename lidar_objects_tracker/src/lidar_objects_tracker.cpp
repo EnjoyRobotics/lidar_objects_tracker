@@ -164,6 +164,11 @@ void ObjectsTracker::scanCallback(
   if (visualize_) {
     auto marker_array = std::make_unique<visualization_msgs::msg::MarkerArray>();
 
+    // Delete all markers from previous frame
+    visualization_msgs::msg::Marker delete_all;
+    delete_all.action = visualization_msgs::msg::Marker::DELETEALL;
+    marker_array->markers.push_back(delete_all);
+
     // Cluster centroids and bounding boxes
     visualization_msgs::msg::Marker marker_centroids;
     marker_centroids.header.frame_id = target_frame_;
@@ -312,33 +317,6 @@ void ObjectsTracker::scanCallback(
       ss << "exist_prob:" << std::setprecision(2) << track.existence_probability;
       marker_id.text = ss.str();
       marker_array->markers.push_back(marker_id);
-    }
-
-    // Delete dead tracks' markers
-    for (const auto & id : track_update_info.deaths) {
-      visualization_msgs::msg::Marker marker_delete;
-      marker_delete.header.frame_id = target_frame_;
-      marker_delete.header.stamp = msg->header.stamp;
-      marker_delete.ns = "tracked_objects";
-      marker_delete.id = id;
-      marker_delete.action = visualization_msgs::msg::Marker::DELETE;
-      marker_array->markers.push_back(marker_delete);
-
-      visualization_msgs::msg::Marker marker_velocity_delete;
-      marker_velocity_delete.header.frame_id = target_frame_;
-      marker_velocity_delete.header.stamp = msg->header.stamp;
-      marker_velocity_delete.ns = "tracked_object_velocities";
-      marker_velocity_delete.id = id;
-      marker_velocity_delete.action = visualization_msgs::msg::Marker::DELETE;
-      marker_array->markers.push_back(marker_velocity_delete);
-
-      visualization_msgs::msg::Marker marker_id_delete;
-      marker_id_delete.header.frame_id = target_frame_;
-      marker_id_delete.header.stamp = msg->header.stamp;
-      marker_id_delete.ns = "tracked_object_ids";
-      marker_id_delete.id = id;
-      marker_id_delete.action = visualization_msgs::msg::Marker::DELETE;
-      marker_array->markers.push_back(marker_id_delete);
     }
 
     marker_pub_->publish(std::move(marker_array));
