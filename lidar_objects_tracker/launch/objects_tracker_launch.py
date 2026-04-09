@@ -27,7 +27,8 @@ def generate_launch_description():
 
     bag_play = ExecuteProcess(
         cmd=[
-            'ros2', 'bag', 'play', '/home/ubuntu/ros2-service-robot/workspace/src/lidar_objects_tracker/rosbag2_filtered'
+            'ros2', 'bag', 'play', '/home/ubuntu/ros2-service-robot/workspace/src/lidar_objects_tracker/rosbag2_filtered',
+                '--disable-keyboard-controls',
         ],
         output='screen'
     )
