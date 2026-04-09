@@ -33,7 +33,14 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Reset RViz time on startup in simulation
+    reset_rviz = ExecuteProcess(
+        cmd=['ros2', 'service', 'call', '/rviz/reset_time', 'std_srvs/srv/Empty', '{}'],
+        output='screen'
+    )
+
     return LaunchDescription([
         objects_tracker_node,
         bag_play,
+        reset_rviz
     ])
