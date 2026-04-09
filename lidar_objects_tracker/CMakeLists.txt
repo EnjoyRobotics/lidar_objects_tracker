@@ -5,7 +5,6 @@ find_package(ament_cmake REQUIRED)
 
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
-find_package(rclcpp_lifecycle REQUIRED)
 
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -23,7 +22,6 @@ find_package(Open3D REQUIRED)
 set(DEPS
   rclcpp
   rclcpp_components
-  rclcpp_lifecycle
   geometry_msgs
   sensor_msgs
   visualization_msgs

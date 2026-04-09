@@ -15,7 +15,6 @@
 #include <memory>
 
 #include <rclcpp/rclcpp.hpp>
-#include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include "lidar_objects_tracker/lmb_tracker.hpp"
 
 #include "tf2_ros/buffer.hpp"
@@ -29,35 +28,11 @@
 namespace lidar_objects_tracker
 {
 
-class ObjectsTracker : public rclcpp_lifecycle::LifecycleNode
+class ObjectsTracker : public rclcpp::Node
 {
 public:
   explicit ObjectsTracker(
     const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
-
-  CallbackReturn on_configure(const rclcpp_lifecycle::State &) override
-  {
-    return CallbackReturn::SUCCESS;
-  }
-
-  CallbackReturn on_activate(const rclcpp_lifecycle::State &) override
-  {
-    scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
-      "scan", 10,
-      std::bind(&ObjectsTracker::scanCallback, this, std::placeholders::_1));
-
-    tracked_objects_pub_->on_activate();
-    marker_pub_->on_activate();
-
-    return CallbackReturn::SUCCESS;
-  }
-
-  CallbackReturn on_deactivate(const rclcpp_lifecycle::State &) override
-  {
-    tracked_objects_pub_->on_deactivate();
-    marker_pub_->on_deactivate();
-    return CallbackReturn::SUCCESS;
-  }
 
 private:
   void scanCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr & msg);
@@ -74,10 +49,9 @@ private:
   tf2_ros::Buffer::SharedPtr tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
-  rclcpp_lifecycle::LifecyclePublisher<lidar_objects_tracker_msgs::msg::TrackedObjects>::SharedPtr
+  rclcpp::Publisher<lidar_objects_tracker_msgs::msg::TrackedObjects>::SharedPtr
     tracked_objects_pub_;
-  rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr
-    marker_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
 
   std::unique_ptr<LMBTracker> tracker_;
 

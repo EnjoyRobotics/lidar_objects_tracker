@@ -25,17 +25,6 @@ def generate_launch_description():
         ],
     )
 
-    lifecycle_manager = Node(
-        package='nav2_lifecycle_manager',
-        executable='lifecycle_manager',
-        name='lifecycle_manager_objects_tracker',
-        output='screen',
-        parameters=[
-            {'autostart': True},
-            {'node_names': ['objects_tracker_node']},
-        ],
-    )
-
     bag_play = ExecuteProcess(
         cmd=[
             'ros2', 'bag', 'play', '/home/ubuntu/ros2-service-robot/workspace/src/lidar_objects_tracker/rosbag2_filtered'
@@ -45,6 +34,5 @@ def generate_launch_description():
 
     return LaunchDescription([
         objects_tracker_node,
-        lifecycle_manager,
         bag_play,
     ])

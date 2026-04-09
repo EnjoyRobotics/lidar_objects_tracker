@@ -8,7 +8,6 @@
 
 #include <optional>
 #include "lidar_objects_tracker/lidar_objects_tracker.hpp"
-#include "lifecycle_msgs/msg/state.hpp"
 #include "tf2_eigen/tf2_eigen.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include <open3d/geometry/BoundingVolume.h>
@@ -18,7 +17,7 @@ namespace lidar_objects_tracker
 {
 
 ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
-: rclcpp_lifecycle::LifecycleNode("objects_tracker", options)
+: rclcpp::Node("objects_tracker", options)
 {
   // Get parameters
   declare_parameter<std::string>("target_frame", "odom");
@@ -91,11 +90,6 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
 void ObjectsTracker::scanCallback(
   const sensor_msgs::msg::LaserScan::ConstSharedPtr & msg)
 {
-  if (get_current_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
-    RCLCPP_WARN(get_logger(), "Node is not active. Skipping scan processing.");
-    return;
-  }
-
   // Convert LaserScan to 2D points
   open3d::geometry::PointCloud pc = laserScanToPointCloud(msg);
 
