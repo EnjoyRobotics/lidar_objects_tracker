@@ -1,9 +1,15 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import ExecuteProcess
+from launch_ros.substitutions import FindPackageShare
+from launch.substitutions import PathJoinSubstitution
 
 
 def generate_launch_description():
+
+    config = PathJoinSubstitution(
+        [FindPackageShare('lidar_objects_tracker'), 'config', 'objects_tracker.yaml']
+    )
 
     objects_tracker_node = Node(
         package='lidar_objects_tracker',
@@ -13,18 +19,7 @@ def generate_launch_description():
         remappings=[
             ('scan', 'lidar/base/front/scan'),
         ],
-        parameters=[
-            {'target_frame': 'odom'},
-            {'cluster_neighbor_radius': 0.4},
-            {'cluster_min_points': 15},
-            {'cluster_max_points': 200},
-            {'lmb_tracker.birth_existence_prob': 0.01},
-            {'lmb_tracker.survival_prob': 0.999},
-            {'lmb_tracker.detection_prob': 0.05},
-            {'lmb_tracker.kf_pos_uncertainty': 0.2},
-            {'lmb_tracker.kf_vel_uncertainty': 0.4},
-            {'lmb_tracker.kf_acc_uncertainty': 1.0},
-        ],
+        parameters=[config],
     )
 
     bag_play = ExecuteProcess(

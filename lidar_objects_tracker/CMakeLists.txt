@@ -74,6 +74,11 @@ install(
   DESTINATION share/${PROJECT_NAME}/launch
 )
 
+install(
+  DIRECTORY config
+  DESTINATION share/${PROJECT_NAME}/config
+)
+
 ament_export_targets(export_${PROJECT_NAME})
 ament_export_dependencies(${DEPS})
 
