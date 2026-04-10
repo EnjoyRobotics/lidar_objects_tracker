@@ -394,7 +394,7 @@ open3d::geometry::PointCloud ObjectsTracker::laserScanToPointCloud(
 std::vector<open3d::geometry::PointCloud> ObjectsTracker::segment(
   const open3d::geometry::PointCloud & pc) const
 {
-  std::vector<int> labels = pc.ClusterDBSCAN(cluster_neighbor_radius_, cluster_min_points_, false);
+  std::vector<int> labels = pc.ClusterDBSCAN(cluster_neighbor_radius_, cluster_min_points_);
   std::vector<open3d::geometry::PointCloud> clusters;
   int max_label = *std::max_element(labels.begin(), labels.end());
   clusters.resize(max_label + 1);
