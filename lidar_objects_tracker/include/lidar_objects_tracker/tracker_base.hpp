@@ -9,11 +9,13 @@
 #ifndef LIDAR_OBJECTS_TRACKER__TRACKER_BASE_HPP_
 #define LIDAR_OBJECTS_TRACKER__TRACKER_BASE_HPP_
 
-#include <vector>
-#include <map>
-#include <set>
-#include <memory>
 #include <Eigen/Core>
+
+#include <map>
+#include <memory>
+#include <set>
+#include <vector>
+
 #include "lidar_objects_tracker/kalman_filter.hpp"
 
 namespace lidar_objects_tracker

@@ -9,15 +9,15 @@
 #ifndef LIDAR_OBJECTS_TRACKER__STATIC_BACKGROUND_SUBTRACTOR_HPP_
 #define LIDAR_OBJECTS_TRACKER__STATIC_BACKGROUND_SUBTRACTOR_HPP_
 
-#include <cmath>
-#include <string>
-#include <vector>
-#include <algorithm>
-
+#include <nav_msgs/msg/occupancy_grid.hpp>
 #include <open3d/geometry/PointCloud.h>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/header.hpp>
-#include <nav_msgs/msg/occupancy_grid.hpp>
+
+#include <algorithm>
+#include <cmath>
+#include <string>
+#include <vector>
 
 namespace lidar_objects_tracker
 {
@@ -55,13 +55,18 @@ public:
     node.declare_parameter<bool>("static_bg_subtractor.publish_grid", false);
     node.declare_parameter<double>("static_bg_subtractor.grid_half_size", 20.0);
 
-    resolution_     = static_cast<float>(node.get_parameter("static_bg_subtractor.resolution").as_double());
-    hit_increment_  = static_cast<float>(node.get_parameter("static_bg_subtractor.hit_increment").as_double());
-    miss_decrement_ = static_cast<float>(node.get_parameter("static_bg_subtractor.miss_decrement").as_double());
-    threshold_        = static_cast<float>(node.get_parameter("static_bg_subtractor.threshold").as_double());
-    inflation_radius_  = node.get_parameter("static_bg_subtractor.inflation_radius").as_int();
-    publish_grid_     = node.get_parameter("static_bg_subtractor.publish_grid").as_bool();
-    grid_half_size_ = static_cast<float>(node.get_parameter("static_bg_subtractor.grid_half_size").as_double());
+    resolution_ =
+      static_cast<float>(node.get_parameter("static_bg_subtractor.resolution").as_double());
+    hit_increment_ =
+      static_cast<float>(node.get_parameter("static_bg_subtractor.hit_increment").as_double());
+    miss_decrement_ =
+      static_cast<float>(node.get_parameter("static_bg_subtractor.miss_decrement").as_double());
+    threshold_ =
+      static_cast<float>(node.get_parameter("static_bg_subtractor.threshold").as_double());
+    inflation_radius_ = node.get_parameter("static_bg_subtractor.inflation_radius").as_int();
+    publish_grid_ = node.get_parameter("static_bg_subtractor.publish_grid").as_bool();
+    grid_half_size_ =
+      static_cast<float>(node.get_parameter("static_bg_subtractor.grid_half_size").as_double());
 
     // Grid dimensions: centred at origin
     grid_size_ = static_cast<int>(std::ceil(2.0f * grid_half_size_ / resolution_));

@@ -9,12 +9,16 @@
 #ifndef LIDAR_OBJECTS_TRACKER__LMB_TRACKER_HPP_
 #define LIDAR_OBJECTS_TRACKER__LMB_TRACKER_HPP_
 
-#include <vector>
-#include <map>
-#include <set>
-#include <memory>
 #include <Eigen/Core>
-#include "rclcpp/rclcpp.hpp"
+#include <rclcpp/rclcpp.hpp>
+
+#include <map>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <utility>
+#include <vector>
+
 #include "lidar_objects_tracker/tracker_base.hpp"
 
 namespace lidar_objects_tracker
@@ -40,15 +44,23 @@ public:
     node.declare_parameter<double>("kalman_filter.pos_uncertainty", 0.2);
     node.declare_parameter<double>("kalman_filter.vel_uncertainty", 0.4);
     node.declare_parameter<double>("kalman_filter.acc_uncertainty", 1.0);
-    max_dt_               = static_cast<float>(node.get_parameter("lmb_tracker.max_dt").as_double());
-    gate_threshold_       = static_cast<float>(node.get_parameter("lmb_tracker.gate_threshold").as_double());
-    birth_existence_prob_ = static_cast<float>(node.get_parameter("lmb_tracker.birth_existence_prob").as_double());
-    death_existence_prob_ = static_cast<float>(node.get_parameter("lmb_tracker.death_existence_prob").as_double());
-    survival_prob_        = static_cast<float>(node.get_parameter("lmb_tracker.survival_prob").as_double());
-    detection_prob_       = static_cast<float>(node.get_parameter("lmb_tracker.detection_prob").as_double());
-    kf_pos_uncertainty_   = static_cast<float>(node.get_parameter("kalman_filter.pos_uncertainty").as_double());
-    kf_vel_uncertainty_   = static_cast<float>(node.get_parameter("kalman_filter.vel_uncertainty").as_double());
-    kf_acc_uncertainty_   = static_cast<float>(node.get_parameter("kalman_filter.acc_uncertainty").as_double());
+    max_dt_ = static_cast<float>(node.get_parameter("lmb_tracker.max_dt").as_double());
+    gate_threshold_ =
+      static_cast<float>(node.get_parameter("lmb_tracker.gate_threshold").as_double());
+    birth_existence_prob_ =
+      static_cast<float>(node.get_parameter("lmb_tracker.birth_existence_prob").as_double());
+    death_existence_prob_ =
+      static_cast<float>(node.get_parameter("lmb_tracker.death_existence_prob").as_double());
+    survival_prob_ =
+      static_cast<float>(node.get_parameter("lmb_tracker.survival_prob").as_double());
+    detection_prob_ =
+      static_cast<float>(node.get_parameter("lmb_tracker.detection_prob").as_double());
+    kf_pos_uncertainty_ =
+      static_cast<float>(node.get_parameter("kalman_filter.pos_uncertainty").as_double());
+    kf_vel_uncertainty_ =
+      static_cast<float>(node.get_parameter("kalman_filter.vel_uncertainty").as_double());
+    kf_acc_uncertainty_ =
+      static_cast<float>(node.get_parameter("kalman_filter.acc_uncertainty").as_double());
   }
 
   UpdateInfo updateTracks(const std::vector<Eigen::Vector2f> & measurements) override

@@ -103,7 +103,7 @@ public:
     return mahalanobis_dist2;
   }
 
-  /** @brief Calculate squared Mahalanobis distance for a given measurement 
+  /** @brief Calculate squared Mahalanobis distance for a given measurement
    * without updating the state
    * @param z Measurement vector [x, y]
    * @return Squared Mahalanobis distance

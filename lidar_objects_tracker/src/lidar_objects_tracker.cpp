@@ -6,15 +6,18 @@
  * Owner: Enjoy Robotics Zrt maintainer@enjoyrobotics.com, 2025
  */
 
+#include <open3d/geometry/BoundingVolume.h>
+
 #include <optional>
+
+#include <rclcpp_components/register_node_macro.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+
+#include "geometry_msgs/msg/transform_stamped.hpp"
 #include "lidar_objects_tracker/lidar_objects_tracker.hpp"
 #include "lidar_objects_tracker/lmb_tracker.hpp"
 #include "lidar_objects_tracker/pmbm_tracker.hpp"
 #include "tf2_eigen/tf2_eigen.hpp"
-#include "geometry_msgs/msg/transform_stamped.hpp"
-#include <open3d/geometry/BoundingVolume.h>
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <rclcpp_components/register_node_macro.hpp>
 
 namespace lidar_objects_tracker
 {
@@ -78,7 +81,8 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
     tracker_ = std::make_unique<PMBMTracker>(*this);
     RCLCPP_INFO(get_logger(), "Using PMBM tracker");
   } else {
-    throw std::invalid_argument("Unknown tracker type: '" + tracker_type + "'. Valid options: 'lmb', 'pmbm'");
+    throw std::invalid_argument(
+      "Unknown tracker type: '" + tracker_type + "'. Valid options: 'lmb', 'pmbm'");
   }
 
   scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
@@ -127,7 +131,7 @@ void ObjectsTracker::scanCallback(
   }
 
   if (pc.points_.empty()) {
-    RCLCPP_WARN(get_logger(), "No points after processing, skipping");
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "No points after processing");
     return;
   }
 
@@ -363,8 +367,7 @@ void ObjectsTracker::scanCallback(
       marker_id.pose.position.y = state(1);
       marker_id.pose.position.z = 0.5;
       std::stringstream ss;
-      ss << "id:" << id << "\n";
-      ss << "std:" << std::setprecision(2) << pos_std << "\n";
+      ss << "#" << id << "\n";
       ss << "exist_prob:" << std::setprecision(2) << track.existence_probability;
       marker_id.text = ss.str();
       marker_array->markers.push_back(marker_id);

@@ -29,10 +29,10 @@ TEST_F(KalmanFilter2DTest, Initialization)
     EXPECT_NEAR(x(3), 0.0f, 1e-6);
 
     const Eigen::Matrix4f P = kf.covariance;
-    EXPECT_NEAR(P(0, 0), 0.01f, 1e-6);
-    EXPECT_NEAR(P(1, 1), 0.01f, 1e-6);
-    EXPECT_NEAR(P(2, 2), 0.0625f, 1e-6);
-    EXPECT_NEAR(P(3, 3), 0.0625f, 1e-6);
+    EXPECT_NEAR(P(0, 0), 0.0025f, 1e-6);
+    EXPECT_NEAR(P(1, 1), 0.0025f, 1e-6);
+    EXPECT_NEAR(P(2, 2), 0.01f, 1e-6);
+    EXPECT_NEAR(P(3, 3), 0.01f, 1e-6);
 }
 
 // Test prediction step with no external update

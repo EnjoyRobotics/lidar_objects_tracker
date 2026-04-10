@@ -11,6 +11,7 @@
 
 #include <open3d/geometry/PointCloud.h>
 
+#include <string>
 #include <vector>
 #include <memory>
 
@@ -24,7 +25,6 @@
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
-#include "lidar_objects_tracker_msgs/msg/tracked_object.hpp"
 #include "lidar_objects_tracker_msgs/msg/tracked_objects.hpp"
 
 namespace lidar_objects_tracker
