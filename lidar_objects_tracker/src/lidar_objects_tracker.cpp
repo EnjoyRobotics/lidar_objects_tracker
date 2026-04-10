@@ -46,6 +46,20 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
       filtered_pcl_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
         "filtered_scan", 10);
     }
+
+  declare_parameter<bool>("enable_radius_outlier_removal", false);
+  enable_radius_outlier_removal_ = get_parameter("enable_radius_outlier_removal").as_bool();
+  if (enable_radius_outlier_removal_) {
+    declare_parameter<int>("radius_outlier_removal.min_points", 5);
+    declare_parameter<double>("radius_outlier_removal.radius", 0.3);
+    radius_outlier_removal_min_points_ =
+      get_parameter("radius_outlier_removal.min_points").as_int();
+    radius_outlier_removal_radius_ =
+      get_parameter("radius_outlier_removal.radius").as_double();
+    RCLCPP_INFO(
+      get_logger(),
+      "Radius outlier removal enabled (radius=%.3f, min_points=%d)",
+      radius_outlier_removal_radius_, radius_outlier_removal_min_points_);
   }
 
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
@@ -122,6 +136,12 @@ void ObjectsTracker::scanCallback(
 
       filtered_pcl_pub_->publish(pcl_msg);
     }
+
+  // Radius outlier removal: remove points with too few neighbours within a radius
+  if (enable_radius_outlier_removal_) {
+    auto [filtered_pc, _] = pc.RemoveRadiusOutliers(
+      radius_outlier_removal_min_points_, radius_outlier_removal_radius_);
+    pc = std::move(*filtered_pc);
   }
 
   if (pc.points_.empty()) {

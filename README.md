@@ -12,6 +12,7 @@ The pipeline runs on every incoming `LaserScan`:
 1. **Scan → Point Cloud** — raw ranges are converted to 2D Cartesian points.
 2. **TF transform** — the point cloud is transformed into `target_frame`.
 3. **Static background subtraction** *(optional)* — an occupancy grid filters out walls and fixed furniture.
+5. **Radius outlier removal** *(optional)* — isolated points with too few neighbours within a given radius are discarded.
 4. **DBSCAN clustering** — remaining points are grouped into object candidates.
 5. **Centroid extraction** — a 2D centroid is computed per cluster.
 6. **Multi-object tracker** — centroids are fed to the selected tracker (LMB or PMBM) which maintains per-object Kalman filters and existence probabilities.
@@ -61,6 +62,7 @@ Custom message definitions.
 | `cluster_min_points` | `5` | Minimum points to form a cluster. |
 | `visualize` | `true` | Publish RViz markers. |
 | `enable_static_bg_subtraction` | `true` | Enable the static background filter. |
+| `enable_radius_outlier_removal` | `false` | Enable radius outlier removal to discard isolated points. |
 | `tracker` | `lmb` | Which tracker to use: `lmb` or `pmbm`. |
 
 ### Static Background Subtractor (`static_bg_subtractor.*`)
@@ -75,6 +77,16 @@ Custom message definitions.
 | `grid_half_size` | `20.0` | Half-width/height of the grid (m). The grid is centred on the robot. |
 | `publish_grid` | `true` | Publish the occupancy grid on `static_background_grid` for debugging. |
 | `publish_filtered_pcl` | `true` | Publish the filtered point cloud on `filtered_scan`. |
+
+### Radius Outlier Removal (`radius_outlier_removal.*`)
+
+Only declared when `enable_radius_outlier_removal: true`.
+Uses Open3D's `RemoveRadiusOutliers` on the 2D point cloud (z = 0) after the flicker filter.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `min_points` | `5` | Minimum number of neighbours a point must have within `radius` to be kept. |
+| `radius` | `0.3` | Search radius (m). Points with fewer than `min_points` neighbours within this distance are removed. |
 
 ### LMB Tracker (`lmb_tracker.*`)
 

@@ -20,6 +20,11 @@ objects_tracker_node:
       grid_half_size: 20.0
       inflation_radius: 1
 
+    enable_radius_outlier_removal: true
+    radius_outlier_removal:
+      min_points: 8   # minimum neighbours required within radius to keep a point
+      radius: 0.2     # search radius in metres
+
     lmb_tracker:
       max_dt: 1.0
       gate_threshold: 6.0

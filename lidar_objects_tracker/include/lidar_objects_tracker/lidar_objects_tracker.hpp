@@ -67,6 +67,9 @@ private:
   bool visualize_;
   bool enable_static_bg_subtraction_;
   bool publish_filtered_pcl_;
+  bool enable_radius_outlier_removal_;
+  int radius_outlier_removal_min_points_;
+  double radius_outlier_removal_radius_;
 };
 
 }  // namespace lidar_objects_tracker
