@@ -3,7 +3,7 @@ objects_tracker_node:
     target_frame: odom
     # TODO move these params to cluster namespace
     cluster_neighbor_radius: 0.5
-    cluster_min_points: 3
+    cluster_min_points: 10
     visualize: true
     publish_filtered_pcl: true
 

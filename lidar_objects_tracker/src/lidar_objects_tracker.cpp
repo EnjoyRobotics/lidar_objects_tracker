@@ -246,8 +246,8 @@ void ObjectsTracker::scanCallback(
     default_bbox.scale.x = 0.01;
     default_bbox.color.r = 1.0;
     default_bbox.color.g = 1.0;
-    default_bbox.color.b = 1.0;
-    default_bbox.color.a = 0.5;
+    default_bbox.color.b = 0.8;
+    default_bbox.color.a = 1.0;
 
     for (size_t i = 0; i < centroids.size(); ++i) {
       // Get centroid and bbox

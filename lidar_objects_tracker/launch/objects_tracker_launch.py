@@ -1,11 +1,17 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import ExecuteProcess, Shutdown
+from launch.actions import DeclareLaunchArgument
 from launch_ros.substitutions import FindPackageShare
-from launch.substitutions import PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 
 
 def generate_launch_description():
+
+    bag_path_arg = DeclareLaunchArgument(
+        'bag_path',
+        description='Path to the rosbag2 directory to play back',
+    )
 
     config = PathJoinSubstitution(
         [FindPackageShare('lidar_objects_tracker'), 'config', 'objects_tracker.yaml']
@@ -24,7 +30,8 @@ def generate_launch_description():
 
     bag_play = ExecuteProcess(
         cmd=[
-            'ros2', 'bag', 'play', '/home/ubuntu/ros2-service-robot/workspace/src/lidar_objects_tracker/rosbag2_filtered',
+            'ros2', 'bag', 'play',
+                LaunchConfiguration('bag_path'),
                 '--disable-keyboard-controls',
         ],
         output='screen',
@@ -38,6 +45,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        bag_path_arg,
         objects_tracker_node,
         bag_play,
         reset_rviz
