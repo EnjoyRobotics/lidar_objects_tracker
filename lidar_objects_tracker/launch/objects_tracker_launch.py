@@ -1,6 +1,6 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import ExecuteProcess
+from launch.actions import ExecuteProcess, Shutdown
 from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import PathJoinSubstitution
 
@@ -27,7 +27,8 @@ def generate_launch_description():
             'ros2', 'bag', 'play', '/home/ubuntu/ros2-service-robot/workspace/src/lidar_objects_tracker/rosbag2_filtered',
                 '--disable-keyboard-controls',
         ],
-        output='screen'
+        output='screen',
+        on_exit=Shutdown()
     )
 
     # Reset RViz time on startup in simulation
