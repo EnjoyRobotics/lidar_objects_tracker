@@ -39,13 +39,14 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
   if (enable_static_bg_subtraction_) {
     static_bg_subtractor_ = std::make_unique<StaticBackgroundSubtractor>(*this);
     RCLCPP_INFO(get_logger(), "Static background subtraction enabled");
+  }
 
-    declare_parameter<bool>("static_bg_subtractor.publish_filtered_pcl", false);
-    publish_filtered_pcl_ = get_parameter("static_bg_subtractor.publish_filtered_pcl").as_bool();
-    if (publish_filtered_pcl_) {
-      filtered_pcl_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
-        "filtered_scan", 10);
-    }
+  declare_parameter<bool>("publish_filtered_pcl", false);
+  publish_filtered_pcl_ = get_parameter("publish_filtered_pcl").as_bool();
+  if (publish_filtered_pcl_) {
+    filtered_pcl_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
+      "filtered_scan", 10);
+  }
 
   declare_parameter<bool>("enable_radius_outlier_removal", false);
   enable_radius_outlier_removal_ = get_parameter("enable_radius_outlier_removal").as_bool();
@@ -103,39 +104,7 @@ void ObjectsTracker::scanCallback(
     std_msgs::msg::Header target_header = msg->header;
     target_header.frame_id = target_frame_;
     pc = static_bg_subtractor_->filter(pc, target_header);
-
-    if (publish_filtered_pcl_ && filtered_pcl_pub_) {
-      sensor_msgs::msg::PointCloud2 pcl_msg;
-      pcl_msg.header = target_header;
-      pcl_msg.height = 1;
-      pcl_msg.width = static_cast<uint32_t>(pc.points_.size());
-      pcl_msg.is_dense = true;
-      pcl_msg.is_bigendian = false;
-
-      sensor_msgs::msg::PointField field_x, field_y, field_z;
-      field_x.name = "x"; field_x.offset = 0;
-      field_x.datatype = sensor_msgs::msg::PointField::FLOAT32; field_x.count = 1;
-      field_y.name = "y"; field_y.offset = 4;
-      field_y.datatype = sensor_msgs::msg::PointField::FLOAT32; field_y.count = 1;
-      field_z.name = "z"; field_z.offset = 8;
-      field_z.datatype = sensor_msgs::msg::PointField::FLOAT32; field_z.count = 1;
-      pcl_msg.fields = {field_x, field_y, field_z};
-      pcl_msg.point_step = 12;
-      pcl_msg.row_step = pcl_msg.point_step * pcl_msg.width;
-      pcl_msg.data.resize(pcl_msg.row_step);
-
-      for (size_t i = 0; i < pc.points_.size(); ++i) {
-        const auto & pt = pc.points_[i];
-        float fx = static_cast<float>(pt.x());
-        float fy = static_cast<float>(pt.y());
-        float fz = static_cast<float>(pt.z());
-        std::memcpy(&pcl_msg.data[i * 12 + 0], &fx, 4);
-        std::memcpy(&pcl_msg.data[i * 12 + 4], &fy, 4);
-        std::memcpy(&pcl_msg.data[i * 12 + 8], &fz, 4);
-      }
-
-      filtered_pcl_pub_->publish(pcl_msg);
-    }
+  }
 
   // Radius outlier removal: remove points with too few neighbours within a radius
   if (enable_radius_outlier_removal_) {
@@ -145,8 +114,42 @@ void ObjectsTracker::scanCallback(
   }
 
   if (pc.points_.empty()) {
-    RCLCPP_DEBUG(get_logger(), "No points after processing, skipping");
+    RCLCPP_WARN(get_logger(), "No points after processing, skipping");
     return;
+  }
+
+  if (publish_filtered_pcl_) {
+    sensor_msgs::msg::PointCloud2 pcl_msg;
+    pcl_msg.header.frame_id = target_frame_;
+    pcl_msg.header.stamp = msg->header.stamp;
+    pcl_msg.height = 1;
+    pcl_msg.width = static_cast<uint32_t>(pc.points_.size());
+    pcl_msg.is_dense = true;
+    pcl_msg.is_bigendian = false;
+
+    sensor_msgs::msg::PointField field_x, field_y, field_z;
+    field_x.name = "x"; field_x.offset = 0;
+    field_x.datatype = sensor_msgs::msg::PointField::FLOAT32; field_x.count = 1;
+    field_y.name = "y"; field_y.offset = 4;
+    field_y.datatype = sensor_msgs::msg::PointField::FLOAT32; field_y.count = 1;
+    field_z.name = "z"; field_z.offset = 8;
+    field_z.datatype = sensor_msgs::msg::PointField::FLOAT32; field_z.count = 1;
+    pcl_msg.fields = {field_x, field_y, field_z};
+    pcl_msg.point_step = 12;
+    pcl_msg.row_step = pcl_msg.point_step * pcl_msg.width;
+    pcl_msg.data.resize(pcl_msg.row_step);
+
+    for (size_t i = 0; i < pc.points_.size(); ++i) {
+      const auto & pt = pc.points_[i];
+      float fx = static_cast<float>(pt.x());
+      float fy = static_cast<float>(pt.y());
+      float fz = static_cast<float>(pt.z());
+      std::memcpy(&pcl_msg.data[i * 12 + 0], &fx, 4);
+      std::memcpy(&pcl_msg.data[i * 12 + 4], &fy, 4);
+      std::memcpy(&pcl_msg.data[i * 12 + 8], &fz, 4);
+    }
+
+    filtered_pcl_pub_->publish(pcl_msg);
   }
 
   // Segment and calculate centroids

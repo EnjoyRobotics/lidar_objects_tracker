@@ -5,6 +5,7 @@ objects_tracker_node:
     cluster_neighbor_radius: 0.5
     cluster_min_points: 3
     visualize: true
+    publish_filtered_pcl: true
 
     enable_static_bg_subtraction: true
     static_bg_subtractor:
@@ -16,7 +17,6 @@ objects_tracker_node:
       miss_decrement: 0.003
       threshold: 0.7
       publish_grid: true
-      publish_filtered_pcl: true
       grid_half_size: 20.0
       inflation_radius: 1
 
