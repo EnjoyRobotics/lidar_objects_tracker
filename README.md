@@ -13,10 +13,10 @@ The pipeline runs on every incoming `LaserScan`:
 2. **TF transform** — the point cloud is transformed into `target_frame`.
 3. **Static background subtraction** *(optional)* — an occupancy grid filters out walls and fixed furniture.
 5. **Radius outlier removal** *(optional)* — isolated points with too few neighbours within a given radius are discarded.
-4. **DBSCAN clustering** — remaining points are grouped into object candidates.
-5. **Centroid extraction** — a 2D centroid is computed per cluster.
-6. **Multi-object tracker** — centroids are fed to the selected tracker (LMB or PMBM) which maintains per-object Kalman filters and existence probabilities.
-7. **Publish & visualise** — tracked objects are published on `tracked_objects` and rendered in RViz via `tracked_objects_markers`.
+6. **DBSCAN clustering** — remaining points are grouped into object candidates.
+7. **Centroid extraction** — a 2D centroid is computed per cluster.
+8. **Multi-object tracker** — centroids are fed to the selected tracker (LMB or PMBM) which maintains per-object Kalman filters and existence probabilities.
+9. **Publish & visualise** — tracked objects are published on `tracked_objects` and rendered in RViz via `tracked_objects_markers`.
 
 ## Packages
 
@@ -28,7 +28,7 @@ The main ROS 2 node (`objects_tracker_node`).
 |---|---|---|
 | `ObjectsTracker` | `lidar_objects_tracker.hpp/.cpp` | ROS 2 node. Orchestrates the full pipeline. |
 | `KalmanFilter2D` | `kalman_filter.hpp` | Constant-velocity Kalman filter. State: `[x, y, vx, vy]`. Uses the Joseph form for numerical stability. |
-| `StaticBackgroundSubtractor` | `static_background_subtractor.hpp` | Robot-centric occupancy grid. Cells above a threshold are treated as static and removed. |
+| `StaticBackgroundSubtractor` | `static_background_subtractor.hpp` | World-fixed occupancy grid. Cells above a threshold are treated as static and removed. |
 | `TrackerBase` | `tracker_base.hpp` | Abstract interface. Defines `updateTracks()` and `getTracks()`. Both `LMBTracker` and `PMBMTracker` implement it. |
 | `LMBTracker` | `lmb_tracker.hpp` | Labelled Multi-Bernoulli tracker. Each track is an independent Bernoulli with an existence probability, updated via gating + Kalman filter. |
 
