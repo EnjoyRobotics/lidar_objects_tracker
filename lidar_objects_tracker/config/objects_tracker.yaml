@@ -3,7 +3,7 @@ objects_tracker_node:
     target_frame: odom
     # TODO move these params to cluster namespace
     cluster_neighbor_radius: 0.5
-    cluster_min_points: 10
+    cluster_min_points: 15
     visualize: true
     publish_filtered_pcl: true
 
@@ -22,7 +22,7 @@ objects_tracker_node:
 
     enable_radius_outlier_removal: true
     radius_outlier_removal:
-      min_points: 8   # minimum neighbours required within radius to keep a point
+      min_points: 15   # minimum neighbours required within radius to keep a point
       radius: 0.2     # search radius in metres
 
     tracker: pmbm
@@ -37,15 +37,13 @@ objects_tracker_node:
 
     pmbm_tracker:
       max_dt: 1.0
-      gate_threshold: 9.0
-      survival_prob: 0.9999
-      # IMPORTANT: must be higher than LMB value
-      # PMBM relies on detection probability for Bayesian updates
-      detection_prob: 0.1
-      birth_intensity: 0.01
-      prune_threshold: 0.02
+      gate_threshold: 12.0
+      survival_prob: 0.99
+      detection_prob: 0.035  # at 10Hz, objects detected after 10s of constant detections
+      birth_intensity: 0.0015
+      prune_threshold: 0.008
 
     kalman_filter:
       pos_uncertainty: 0.2
-      vel_uncertainty: 0.4
+      vel_uncertainty: 0.6
       acc_uncertainty: 1.0
