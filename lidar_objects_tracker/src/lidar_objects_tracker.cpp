@@ -29,11 +29,11 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
   declare_parameter<std::string>("target_frame", "odom");
   target_frame_ = get_parameter("target_frame").as_string();
 
-  declare_parameter<double>("cluster_neighbor_radius", 0.2);
-  cluster_neighbor_radius_ = get_parameter("cluster_neighbor_radius").as_double();
+  declare_parameter<double>("cluster.neighbor_radius", 0.2);
+  cluster_neighbor_radius_ = get_parameter("cluster.neighbor_radius").as_double();
 
-  declare_parameter<int>("cluster_min_points", 6);
-  cluster_min_points_ = get_parameter("cluster_min_points").as_int();
+  declare_parameter<int>("cluster.min_points", 6);
+  cluster_min_points_ = get_parameter("cluster.min_points").as_int();
 
   declare_parameter<bool>("visualize", true);
   visualize_ = get_parameter("visualize").as_bool();

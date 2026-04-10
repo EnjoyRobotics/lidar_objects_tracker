@@ -1,11 +1,12 @@
 objects_tracker_node:
   ros__parameters:
     target_frame: odom
-    # TODO move these params to cluster namespace
-    cluster_neighbor_radius: 0.5
-    cluster_min_points: 15
     visualize: true
     publish_filtered_pcl: true
+
+    cluster:
+      neighbor_radius: 0.5
+      min_points: 15
 
     enable_static_bg_subtraction: true
     static_bg_subtractor:
