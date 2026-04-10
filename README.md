@@ -72,6 +72,7 @@ Custom message definitions.
 | `hit_increment` | `0.007` | Probability increase per scan when a cell is hit. Controls how fast a new static object is learned. |
 | `miss_decrement` | `0.015` | Probability decrease per scan when a cell is not hit. Controls how fast a removed object is forgotten. |
 | `threshold` | `0.7` | Cells at or above this probability are classified as static background. |
+| `inflation_radius` | `1` | Number of cells to inflate around each occupied cell. Every cell within this radius of a static cell is also masked, eliminating flickering at object edges. |
 | `grid_half_size` | `20.0` | Half-width/height of the grid (m). The grid is centred on the robot. |
 | `publish_grid` | `true` | Publish the occupancy grid on `static_background_grid` for debugging. |
 | `publish_filtered_pcl` | `true` | Publish the filtered point cloud on `filtered_scan`. |

@@ -28,11 +28,16 @@ namespace lidar_objects_tracker
  * all other cells are decreased. Points that fall on cells above the threshold
  * are considered static background and are filtered out.
  *
+ * An inflation is applied to the thresholded binary grid each
+ * scan: every cell neighbouring an occupied cell is also treated as occupied.
+ * This closes the small gaps that cause flickering at object edges.
+ *
  * Parameters (namespaced under "static_bg_subtractor"):
  *   - resolution        : grid cell size in metres (default 0.1)
  *   - hit_increment     : probability increase on a hit (default 0.1)
  *   - miss_decrement    : probability decrease when not hit (default 0.02)
  *   - threshold         : cells above this probability are treated as static (default 0.7)
+ *   - inflation_radius  : number of cells to inflate around each occupied cell (default 1)
  *   - publish_grid      : publish the occupancy grid for debug (default false)
  *   - grid_half_size    : half-width/height of the grid in metres (default 20.0)
  */
@@ -46,14 +51,16 @@ public:
     node.declare_parameter<double>("static_bg_subtractor.hit_increment", 0.1);
     node.declare_parameter<double>("static_bg_subtractor.miss_decrement", 0.02);
     node.declare_parameter<double>("static_bg_subtractor.threshold", 0.7);
+    node.declare_parameter<int>("static_bg_subtractor.inflation_radius", 1);
     node.declare_parameter<bool>("static_bg_subtractor.publish_grid", false);
     node.declare_parameter<double>("static_bg_subtractor.grid_half_size", 20.0);
 
     resolution_     = static_cast<float>(node.get_parameter("static_bg_subtractor.resolution").as_double());
     hit_increment_  = static_cast<float>(node.get_parameter("static_bg_subtractor.hit_increment").as_double());
     miss_decrement_ = static_cast<float>(node.get_parameter("static_bg_subtractor.miss_decrement").as_double());
-    threshold_      = static_cast<float>(node.get_parameter("static_bg_subtractor.threshold").as_double());
-    publish_grid_   = node.get_parameter("static_bg_subtractor.publish_grid").as_bool();
+    threshold_        = static_cast<float>(node.get_parameter("static_bg_subtractor.threshold").as_double());
+    inflation_radius_  = node.get_parameter("static_bg_subtractor.inflation_radius").as_int();
+    publish_grid_     = node.get_parameter("static_bg_subtractor.publish_grid").as_bool();
     grid_half_size_ = static_cast<float>(node.get_parameter("static_bg_subtractor.grid_half_size").as_double());
 
     // Grid dimensions: centred at origin
@@ -105,19 +112,22 @@ public:
       }
     }
 
-    // --- 3. Filter out points whose cell is above threshold ---
+    // --- 3. Inflate thresholded grid: neighbours of occupied cells are also occupied ---
+    const std::vector<bool> inflated = inflate(grid_, threshold_);
+
+    // --- 4. Filter out points whose cell is static after inflation ---
     open3d::geometry::PointCloud filtered;
     for (const auto & pt : pc.points_) {
       const int ix = worldToIndex(static_cast<float>(pt.x()));
       const int iy = worldToIndex(static_cast<float>(pt.y()));
-      if (!isValid(ix, iy) || grid_[cellIndex(ix, iy)] < threshold_) {
+      if (!isValid(ix, iy) || !inflated[cellIndex(ix, iy)]) {
         filtered.points_.push_back(pt);
       }
     }
 
-    // --- 4. Optionally publish grid ---
+    // --- 5. Optionally publish grid ---
     if (publish_grid_) {
-      publishGrid(header);
+      publishGrid(header, inflated);
     }
 
     return filtered;
@@ -140,7 +150,32 @@ private:
     return iy * grid_size_ + ix;
   }
 
-  void publishGrid(const std_msgs::msg::Header & header)
+  /** @brief Inflate the thresholded grid: a cell is occupied if it or any
+   *  neighbour within inflation_radius_ cells is above the threshold.
+   */
+  std::vector<bool> inflate(const std::vector<float> & grid, float thresh) const
+  {
+    const int n = grid_size_ * grid_size_;
+    const int r = inflation_radius_;
+
+    std::vector<bool> result(n, false);
+    for (int iy = 0; iy < grid_size_; ++iy) {
+      for (int ix = 0; ix < grid_size_; ++ix) {
+        for (int dy = -r; dy <= r && !result[cellIndex(ix, iy)]; ++dy) {
+          for (int dx = -r; dx <= r && !result[cellIndex(ix, iy)]; ++dx) {
+            const int nx = ix + dx;
+            const int ny = iy + dy;
+            if (isValid(nx, ny) && grid[cellIndex(nx, ny)] >= thresh) {
+              result[cellIndex(ix, iy)] = true;
+            }
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  void publishGrid(const std_msgs::msg::Header & header, const std::vector<bool> & inflated)
   {
     nav_msgs::msg::OccupancyGrid msg;
     msg.header = header;
@@ -154,8 +189,8 @@ private:
 
     msg.data.resize(grid_size_ * grid_size_);
     for (int i = 0; i < grid_size_ * grid_size_; ++i) {
-      // OccupancyGrid uses [0, 100], -1 = unknown
-      msg.data[i] = static_cast<int8_t>(grid_[i] * 100.0f);
+      // Show post-closing binary state: occupied=100, free=raw probability
+      msg.data[i] = inflated[i] ? 100 : static_cast<int8_t>(grid_[i] * 100.0f);
     }
 
     grid_pub_->publish(msg);
@@ -168,6 +203,7 @@ private:
   float hit_increment_;
   float miss_decrement_;
   float threshold_;
+  int inflation_radius_;  // cells to inflate around each occupied cell
   bool publish_grid_;
   float grid_half_size_;
 

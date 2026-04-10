@@ -18,7 +18,7 @@ objects_tracker_node:
       publish_grid: true
       publish_filtered_pcl: true
       grid_half_size: 20.0
-
+      inflation_radius: 1
 
     lmb_tracker:
       max_dt: 1.0
