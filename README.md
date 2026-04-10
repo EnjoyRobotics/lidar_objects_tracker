@@ -59,7 +59,6 @@ Custom message definitions.
 | `target_frame` | `odom` | TF frame in which tracking is performed. |
 | `cluster_neighbor_radius` | `0.5` | DBSCAN neighbourhood radius (m). |
 | `cluster_min_points` | `5` | Minimum points to form a cluster. |
-| `cluster_max_points` | `200` | Clusters larger than this are ignored (e.g. walls). |
 | `visualize` | `true` | Publish RViz markers. |
 | `enable_static_bg_subtraction` | `true` | Enable the static background filter. |
 | `tracker` | `lmb` | Which tracker to use: `lmb` or `pmbm`. |

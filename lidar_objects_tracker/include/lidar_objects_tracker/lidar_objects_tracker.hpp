@@ -64,7 +64,6 @@ private:
   std::string target_frame_;
   double cluster_neighbor_radius_;
   size_t cluster_min_points_;
-  size_t cluster_max_points_;
   bool visualize_;
   bool enable_static_bg_subtraction_;
   bool publish_filtered_pcl_;

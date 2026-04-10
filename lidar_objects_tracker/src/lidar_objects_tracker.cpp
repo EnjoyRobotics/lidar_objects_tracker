@@ -30,9 +30,6 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
   declare_parameter<int>("cluster_min_points", 6);
   cluster_min_points_ = get_parameter("cluster_min_points").as_int();
 
-  declare_parameter<int>("cluster_max_points", 50);
-  cluster_max_points_ = get_parameter("cluster_max_points").as_int();
-
   declare_parameter<bool>("visualize", true);
   visualize_ = get_parameter("visualize").as_bool();
 
@@ -137,12 +134,6 @@ void ObjectsTracker::scanCallback(
   std::vector<std::optional<open3d::geometry::AxisAlignedBoundingBox>> bboxes;
   std::vector<Eigen::Vector2f> centroids;
   for (const auto & cluster : clusters) {
-    if (cluster_max_points_ > 0 &&
-      cluster.points_.size() > static_cast<size_t>(cluster_max_points_))
-    {
-      continue;
-    }
-
     centroids.push_back(calculateCentroid(cluster));
     try {
       bboxes.push_back(cluster.GetAxisAlignedBoundingBox());
