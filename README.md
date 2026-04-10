@@ -129,7 +129,7 @@ colcon build --packages-select lidar_objects_tracker lidar_objects_tracker_msgs
 ros2 run lidar_objects_tracker objects_tracker_node
 
 # Or use the launch file (also plays a bag and resets RViz)
-ros2 launch lidar_objects_tracker objects_tracker_launch.py
+ros2 launch lidar_objects_tracker objects_tracker_launch.py bag_path:=/path/to/bagfile.bag
 ```
 
 ## TODOs
