@@ -25,6 +25,8 @@ objects_tracker_node:
       min_points: 8   # minimum neighbours required within radius to keep a point
       radius: 0.2     # search radius in metres
 
+    tracker: pmbm
+
     lmb_tracker:
       max_dt: 1.0
       gate_threshold: 6.0
@@ -32,6 +34,16 @@ objects_tracker_node:
       death_existence_prob: 0.05
       survival_prob: 0.9999
       detection_prob: 0.04
+
+    pmbm_tracker:
+      max_dt: 1.0
+      gate_threshold: 9.0
+      survival_prob: 0.9999
+      # IMPORTANT: must be higher than LMB value
+      # PMBM relies on detection probability for Bayesian updates
+      detection_prob: 0.1
+      birth_intensity: 0.01
+      prune_threshold: 0.02
 
     kalman_filter:
       pos_uncertainty: 0.2

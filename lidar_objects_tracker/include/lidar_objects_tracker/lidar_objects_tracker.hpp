@@ -15,7 +15,7 @@
 #include <memory>
 
 #include <rclcpp/rclcpp.hpp>
-#include "lidar_objects_tracker/lmb_tracker.hpp"
+#include "lidar_objects_tracker/tracker_base.hpp"
 #include "lidar_objects_tracker/static_background_subtractor.hpp"
 
 #include "tf2_ros/buffer.hpp"
@@ -58,7 +58,7 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr filtered_pcl_pub_;
 
-  std::unique_ptr<LMBTracker> tracker_;
+  std::unique_ptr<TrackerBase> tracker_;
 
   // Parameters
   std::string target_frame_;
