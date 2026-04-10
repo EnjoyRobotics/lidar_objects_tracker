@@ -7,23 +7,28 @@ objects_tracker_node:
     visualize: true
 
     enable_static_bg_subtraction: true
-    static_bg_subtractor.resolution: 0.1
-    # With threshold = 0.7, scan freq = 10 Hz
-    # Let it take 10 seconds to adapt to a new static object -> 0.7/(10*10) = 0.007
-    # Let it take 2 seconds to forget a removed static object -> 0.7/(10*2) = 0.015
-    static_bg_subtractor.hit_increment: 0.007
-    static_bg_subtractor.miss_decrement: 0.015
-    static_bg_subtractor.threshold: 0.7
-    static_bg_subtractor.publish_grid: true
-    static_bg_subtractor.publish_filtered_pcl: true
-    static_bg_subtractor.grid_half_size: 20.0
+    static_bg_subtractor:
+      resolution: 0.05
+      # With threshold = 0.7, scan freq = 10 Hz
+      # Let it take 10 seconds to adapt to a new static object -> 0.7/(10*10) = 0.007
+      # Let it take 10 seconds to forget a removed static object -> (1-0.7)/(10*10) = 0.003
+      hit_increment: 0.007
+      miss_decrement: 0.003
+      threshold: 0.7
+      publish_grid: true
+      publish_filtered_pcl: true
+      grid_half_size: 20.0
 
-    lmb_tracker.max_dt: 1.0
-    lmb_tracker.gate_threshold: 6.0
-    lmb_tracker.birth_existence_prob: 0.01
-    lmb_tracker.death_existence_prob: 0.05
-    lmb_tracker.survival_prob: 0.9999
-    lmb_tracker.detection_prob: 0.05
-    lmb_tracker.kf_pos_uncertainty: 0.2
-    lmb_tracker.kf_vel_uncertainty: 0.4
-    lmb_tracker.kf_acc_uncertainty: 1.0
+
+    lmb_tracker:
+      max_dt: 1.0
+      gate_threshold: 6.0
+      birth_existence_prob: 0.005
+      death_existence_prob: 0.05
+      survival_prob: 0.9999
+      detection_prob: 0.04
+
+    kalman_filter:
+      pos_uncertainty: 0.2
+      vel_uncertainty: 0.4
+      acc_uncertainty: 1.0
