@@ -50,7 +50,7 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
   publish_filtered_pcl_ = get_parameter("publish_filtered_pcl").as_bool();
   if (publish_filtered_pcl_) {
     filtered_pcl_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
-      "filtered_scan", 10);
+      "filtered_pcl", 10);
   }
 
   declare_parameter<bool>("enable_radius_outlier_removal", false);
