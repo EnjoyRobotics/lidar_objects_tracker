@@ -113,8 +113,7 @@ void ObjectsTracker::scanCallback(
     geometry_msgs::msg::TransformStamped tf_target_frame;
     try {
       tf_target_frame = tf_buffer_->lookupTransform(
-        target_frame_, msg->header.frame_id, msg->header.stamp,
-        rclcpp::Duration::from_seconds(0.5));
+        target_frame_, msg->header.frame_id, tf2::TimePointZero);
     } catch (const tf2::TransformException & ex) {
       RCLCPP_ERROR(get_logger(), "Could not transform %s to %s: %s",
         msg->header.frame_id.c_str(), target_frame_.c_str(), ex.what());
