@@ -93,6 +93,14 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
     "tracked_objects", 10);
   marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
     "tracked_objects_markers", 10);
+
+  if (visualize_) {
+    declare_parameter<double>("visualization_period", 0.1);
+    const double vis_period = get_parameter("visualization_period").as_double();
+    visualization_timer_ = create_wall_timer(
+      std::chrono::duration<double>(vis_period),
+      std::bind(&ObjectsTracker::visualizationTimerCallback, this));
+  }
 }
 
 void ObjectsTracker::scanCallback(
@@ -215,19 +223,40 @@ void ObjectsTracker::scanCallback(
   }
   tracked_objects_pub_->publish(tracked_objects_msg);
 
-  // Visualize
+  // Cache visualization state for the timer
   if (visualize_) {
-    auto marker_array = std::make_unique<visualization_msgs::msg::MarkerArray>();
+    vis_state_.centroids = centroids;
+    vis_state_.bboxes = bboxes;
+    vis_state_.tracks = tracks;
+    vis_state_.stamp = msg->header.stamp;
+    vis_state_.valid = true;
+  }
+}
 
-    // Delete all markers from previous frame
-    visualization_msgs::msg::Marker delete_all;
-    delete_all.action = visualization_msgs::msg::Marker::DELETEALL;
-    marker_array->markers.push_back(delete_all);
+void ObjectsTracker::visualizationTimerCallback()
+{
+  auto marker_array = std::make_unique<visualization_msgs::msg::MarkerArray>();
+
+  // Always send DELETEALL first so stale markers are cleared when data is absent
+  visualization_msgs::msg::Marker delete_all;
+  delete_all.action = visualization_msgs::msg::Marker::DELETEALL;
+  marker_array->markers.push_back(delete_all);
+
+  // Check if data is stale (no scan received for more than 1 second)
+  const rclcpp::Duration stale_threshold = rclcpp::Duration::from_seconds(1.0);
+  const bool data_fresh = vis_state_.valid &&
+    (now() - vis_state_.stamp) < stale_threshold;
+
+  if (data_fresh) {
+    const auto & centroids = vis_state_.centroids;
+    const auto & bboxes = vis_state_.bboxes;
+    const auto & tracks = vis_state_.tracks;
+    const rclcpp::Time & stamp = vis_state_.stamp;
 
     // Cluster centroids and bounding boxes
     visualization_msgs::msg::Marker marker_centroids;
     marker_centroids.header.frame_id = target_frame_;
-    marker_centroids.header.stamp = msg->header.stamp;
+    marker_centroids.header.stamp = stamp;
     marker_centroids.ns = "centroids";
     marker_centroids.id = 0;
     marker_centroids.type = visualization_msgs::msg::Marker::SPHERE_LIST;
@@ -242,9 +271,8 @@ void ObjectsTracker::scanCallback(
 
     visualization_msgs::msg::Marker default_bbox;
     default_bbox.header.frame_id = target_frame_;
-    default_bbox.header.stamp = msg->header.stamp;
+    default_bbox.header.stamp = stamp;
     default_bbox.ns = "bounding_boxes";
-    // default_bbox.id = 0;
     default_bbox.type = visualization_msgs::msg::Marker::LINE_LIST;
     default_bbox.action = visualization_msgs::msg::Marker::ADD;
     default_bbox.scale.x = 0.01;
@@ -271,7 +299,7 @@ void ObjectsTracker::scanCallback(
         bbox_marker.id = static_cast<int>(i);
         const Eigen::Vector3d min_bound = bbox->min_bound_;
         const Eigen::Vector3d max_bound = bbox->max_bound_;
-        std::vector<Eigen::Vector3d> corners(8);
+        std::vector<Eigen::Vector3d> corners(4);
         corners[0] = Eigen::Vector3d(min_bound.x(), min_bound.y(), 0.0);
         corners[1] = Eigen::Vector3d(max_bound.x(), min_bound.y(), 0.0);
         corners[2] = Eigen::Vector3d(max_bound.x(), max_bound.y(), 0.0);
@@ -305,7 +333,7 @@ void ObjectsTracker::scanCallback(
 
       visualization_msgs::msg::Marker marker_track;
       marker_track.header.frame_id = target_frame_;
-      marker_track.header.stamp = msg->header.stamp;
+      marker_track.header.stamp = stamp;
       marker_track.ns = "tracked_objects";
       marker_track.id = id;
       marker_track.type = visualization_msgs::msg::Marker::SPHERE;
@@ -326,7 +354,7 @@ void ObjectsTracker::scanCallback(
       // Velocity arrow
       visualization_msgs::msg::Marker marker_velocity;
       marker_velocity.header.frame_id = target_frame_;
-      marker_velocity.header.stamp = msg->header.stamp;
+      marker_velocity.header.stamp = stamp;
       marker_velocity.ns = "tracked_object_velocities";
       marker_velocity.id = id;
       marker_velocity.type = visualization_msgs::msg::Marker::ARROW;
@@ -353,7 +381,7 @@ void ObjectsTracker::scanCallback(
       // Add text marker for ID
       visualization_msgs::msg::Marker marker_id;
       marker_id.header.frame_id = target_frame_;
-      marker_id.header.stamp = msg->header.stamp;
+      marker_id.header.stamp = stamp;
       marker_id.ns = "tracked_object_ids";
       marker_id.id = id;
       marker_id.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
@@ -372,9 +400,9 @@ void ObjectsTracker::scanCallback(
       marker_id.text = ss.str();
       marker_array->markers.push_back(marker_id);
     }
-
-    marker_pub_->publish(std::move(marker_array));
   }
+
+  marker_pub_->publish(std::move(marker_array));
 }
 
 open3d::geometry::PointCloud ObjectsTracker::laserScanToPointCloud(

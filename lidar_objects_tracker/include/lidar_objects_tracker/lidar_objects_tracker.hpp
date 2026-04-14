@@ -10,10 +10,13 @@
 #define LIDAR_OBJECTS_TRACKER__LIDAR_OBJECTS_TRACKER_HPP_
 
 #include <open3d/geometry/PointCloud.h>
+#include <open3d/geometry/BoundingVolume.h>
 
 #include <string>
+#include <map>
 #include <vector>
 #include <memory>
+#include <optional>
 
 #include <rclcpp/rclcpp.hpp>
 #include "lidar_objects_tracker/tracker_base.hpp"
@@ -38,6 +41,7 @@ public:
 
 private:
   void scanCallback(const sensor_msgs::msg::LaserScan::ConstSharedPtr & msg);
+  void visualizationTimerCallback();
 
   static open3d::geometry::PointCloud laserScanToPointCloud(
     const sensor_msgs::msg::LaserScan::ConstSharedPtr & msg);
@@ -57,6 +61,18 @@ private:
     tracked_objects_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr filtered_pcl_pub_;
+
+  rclcpp::TimerBase::SharedPtr visualization_timer_;
+
+  // Cached visualization state (updated by scanCallback, consumed by timer)
+  struct VisualizationState {
+    std::vector<Eigen::Vector2f> centroids;
+    std::vector<std::optional<open3d::geometry::AxisAlignedBoundingBox>> bboxes;
+    std::map<uint32_t, Track> tracks;
+    rclcpp::Time stamp{0, 0, RCL_ROS_TIME};
+    bool valid{false};
+  };
+  VisualizationState vis_state_;
 
   std::unique_ptr<TrackerBase> tracker_;
 
