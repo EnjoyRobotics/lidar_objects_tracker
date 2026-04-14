@@ -132,10 +132,10 @@ void ObjectsTracker::scanCallback(
     std_msgs::msg::Header target_header = msg->header;
     target_header.frame_id = target_frame_;
     pc = static_bg_subtractor_->filter(pc, target_header);
-  }
 
-  if (pc.points_.size() == 0) {
-    return;
+    if (pc.points_.size() == 0) {
+      return;
+    }
   }
 
   // Radius outlier removal: remove points with too few neighbours within a radius
@@ -143,10 +143,10 @@ void ObjectsTracker::scanCallback(
     auto [filtered_pc, _] = pc.RemoveRadiusOutliers(
       radius_outlier_removal_min_points_, radius_outlier_removal_radius_);
     pc = std::move(*filtered_pc);
-  }
 
-  if (pc.points_.size() == 0) {
-    return;
+    if (pc.points_.size() == 0) {
+      return;
+    }
   }
 
   if (publish_filtered_pcl_) {
