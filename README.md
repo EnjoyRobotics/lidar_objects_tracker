@@ -12,11 +12,11 @@ The pipeline runs on every incoming `LaserScan`:
 1. **Scan → Point Cloud** — raw ranges are converted to 2D Cartesian points.
 2. **TF transform** — the point cloud is transformed into `target_frame`.
 3. **Static background subtraction** *(optional)* — an occupancy grid filters out walls and fixed furniture.
-5. **Radius outlier removal** *(optional)* — isolated points with too few neighbours within a given radius are discarded.
-6. **DBSCAN clustering** — remaining points are grouped into object candidates.
-7. **Centroid extraction** — a 2D centroid is computed per cluster.
-8. **Multi-object tracker** — centroids are fed to the selected tracker (LMB or PMBM) which maintains per-object Kalman filters and existence probabilities.
-9. **Publish & visualise** — tracked objects are published on `tracked_objects` and rendered in RViz via `tracked_objects_markers`.
+4. **Radius outlier removal** *(optional)* — isolated points with too few neighbours within a given radius are discarded.
+5. **DBSCAN clustering** — remaining points are grouped into object candidates.
+6. **Centroid extraction** — a 2D centroid is computed per cluster.
+7. **Multi-object tracker** — centroids are fed to the selected tracker (LMB or PMBM) which maintains per-object Kalman filters and existence probabilities.
+8. **Publish & visualise** — tracked objects are published on `tracked_objects` and rendered in RViz via `tracked_objects_markers`.
 
 ## Packages
 
@@ -31,6 +31,7 @@ The main ROS 2 node (`objects_tracker_node`).
 | `StaticBackgroundSubtractor` | `static_background_subtractor.hpp` | World-fixed occupancy grid. Cells above a threshold are treated as static and removed. |
 | `TrackerBase` | `tracker_base.hpp` | Abstract interface. Defines `updateTracks()` and `getTracks()`. Both `LMBTracker` and `PMBMTracker` implement it. |
 | `LMBTracker` | `lmb_tracker.hpp` | Labelled Multi-Bernoulli tracker. Each track is an independent Bernoulli with an existence probability, updated via gating + Kalman filter. |
+| `PMBMTracker` | `pmbm_tracker.hpp` | Poisson Multi-Bernoulli Mixture tracker. Undetected objects are modelled as a PPP; detections spawn Bernoulli tracks updated via nearest-neighbour gating + Kalman filter. |
 
 ### `lidar_objects_tracker_msgs`
 
@@ -49,7 +50,7 @@ Custom message definitions.
 | `tracked_objects` | `lidar_objects_tracker_msgs/TrackedObjects` | pub | All active tracked objects. |
 | `tracked_objects_markers` | `visualization_msgs/MarkerArray` | pub | RViz markers: centroids, bounding boxes, track spheres, velocity arrows, ID labels. |
 | `static_background_grid` | `nav_msgs/OccupancyGrid` | pub | Background occupancy grid *(only when `static_bg_subtractor.publish_grid: true`)*. |
-| `filtered_scan` | `sensor_msgs/PointCloud2` | pub | Point cloud after background removal *(only when `static_bg_subtractor.publish_filtered_pcl: true`)*. |
+| `filtered_pcl` | `sensor_msgs/PointCloud2` | pub | Point cloud after background removal *(only when `publish_filtered_pcl: true`)*. |
 
 ## Parameters
 
@@ -58,10 +59,12 @@ Custom message definitions.
 | Parameter | Default | Description |
 |---|---|---|
 | `target_frame` | `odom` | TF frame in which tracking is performed. |
-| `cluster_neighbor_radius` | `0.5` | DBSCAN neighbourhood radius (m). |
-| `cluster_min_points` | `5` | Minimum points to form a cluster. |
+| `cluster.neighbor_radius` | `0.2` | DBSCAN neighbourhood radius (m). |
+| `cluster.min_points` | `6` | Minimum points to form a cluster. |
 | `visualize` | `true` | Publish RViz markers. |
-| `enable_static_bg_subtraction` | `true` | Enable the static background filter. |
+| `visualization_period` | `0.1` | Marker publish interval (s). Only used when `visualize: true`. |
+| `enable_static_bg_subtraction` | `false` | Enable the static background filter. |
+| `publish_filtered_pcl` | `false` | Publish the point cloud after filtering on `filtered_pcl`. |
 | `enable_radius_outlier_removal` | `false` | Enable radius outlier removal to discard isolated points. |
 | `tracker` | `lmb` | Which tracker to use: `lmb` or `pmbm`. |
 
@@ -76,12 +79,11 @@ Custom message definitions.
 | `inflation_radius` | `1` | Number of cells to inflate around each occupied cell. Every cell within this radius of a static cell is also masked, eliminating flickering at object edges. |
 | `grid_half_size` | `20.0` | Half-width/height of the grid (m). The grid is centred on the robot. |
 | `publish_grid` | `true` | Publish the occupancy grid on `static_background_grid` for debugging. |
-| `publish_filtered_pcl` | `true` | Publish the filtered point cloud on `filtered_scan`. |
 
 ### Radius Outlier Removal (`radius_outlier_removal.*`)
 
 Only declared when `enable_radius_outlier_removal: true`.
-Uses Open3D's `RemoveRadiusOutliers` on the 2D point cloud (z = 0) after the flicker filter.
+Uses Open3D's `RemoveRadiusOutliers` on the 2D point cloud (z = 0) after the background filter.
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -94,30 +96,31 @@ Uses Open3D's `RemoveRadiusOutliers` on the 2D point cloud (z = 0) after the fli
 |---|---|---|
 | `max_dt` | `1.0` | Maximum allowed time step (s). Updates with a larger `dt` are skipped. |
 | `gate_threshold` | `6.0` | Squared Mahalanobis distance gate (~95 % confidence for χ² with 2 DOF). |
-| `birth_existence_prob` | `0.01` | Initial existence probability assigned to a new track. Keep low so multiple detections are required before a track is confirmed. |
+| `birth_existence_prob` | `0.2` | Initial existence probability assigned to a new track. Keep low so multiple detections are required before a track is confirmed. |
 | `death_existence_prob` | `0.05` | Tracks with existence probability below this are deleted. |
-| `survival_prob` | `0.9999` | Probability that an existing object is still present in the next step. |
-| `detection_prob` | `0.05` | Probability that an existing object produces a measurement. |
-| `kf_pos_uncertainty` | `0.2` | Position uncertainty (std, m) for Kalman filter initialisation and measurement noise. |
-| `kf_vel_uncertainty` | `0.4` | Velocity uncertainty (std, m/s) for Kalman filter initialisation. |
-| `kf_acc_uncertainty` | `1.0` | Acceleration uncertainty (std, m/s²) used as process noise. |
+| `survival_prob` | `0.99` | Probability that an existing object is still present in the next step. |
+| `detection_prob` | `0.99` | Probability that an existing object produces a measurement. |
 
 ### PMBM Tracker (`pmbm_tracker.*`)
 
 | Parameter | Default | Description |
 |---|---|---|
 | `max_dt` | `1.0` | Maximum allowed time step (s). Updates with a larger `dt` are skipped. |
-| `gate_threshold` | `9.21` | Squared Mahalanobis distance gate (~99 % confidence for χ² with 2 DOF). |
+| `gate_threshold` | `6.0` | Squared Mahalanobis distance gate (~95 % confidence for χ² with 2 DOF). |
 | `survival_prob` | `0.99` | Probability that an existing Bernoulli survives to the next step. |
 | `detection_prob` | `0.9` | Probability that an existing object is detected. |
-| `birth_intensity` | `0.1` | PPP birth intensity. Relative to `clutter_intensity`, governs the initial existence probability of a new Bernoulli (~`birth / (birth + clutter)`). |
-| `clutter_intensity` | `0.5` | Expected number of clutter measurements per unit area per scan. |
-| `death_existence_prob` | `0.05` | Bernoullis whose marginal existence probability falls below this are removed. |
-| `confirm_existence_prob` | `0.5` | Bernoullis at or above this marginal probability are output as confirmed tracks. |
-| `max_hypotheses` | `10` | Maximum number of global hypotheses retained after pruning. |
-| `kf_pos_uncertainty` | `0.2` | Position uncertainty (std, m) for Kalman filter initialisation and measurement noise. |
-| `kf_vel_uncertainty` | `0.4` | Velocity uncertainty (std, m/s) for Kalman filter initialisation. |
-| `kf_acc_uncertainty` | `1.0` | Acceleration uncertainty (std, m/s²) used as process noise. |
+| `birth_intensity` | `0.05` | Initial existence probability assigned to a newly born Bernoulli track. |
+| `prune_threshold` | `0.01` | Bernoullis whose existence probability falls below this are removed. |
+
+### Kalman Filter (`kalman_filter.*`)
+
+Shared by both trackers.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `pos_uncertainty` | `0.2` | Position uncertainty (std, m) for Kalman filter initialisation and measurement noise. |
+| `vel_uncertainty` | `0.4` | Velocity uncertainty (std, m/s) for Kalman filter initialisation. |
+| `acc_uncertainty` | `1.0` | Acceleration uncertainty (std, m/s²) used as process noise. |
 
 ## Usage
 
@@ -139,4 +142,3 @@ ros2 launch lidar_objects_tracker objects_tracker_launch.py bag_path:=/path/to/b
 * Optionally publish static (and dynamic?) scans
 * Improve clustering
 * Delete leftover bounding box markers
-
