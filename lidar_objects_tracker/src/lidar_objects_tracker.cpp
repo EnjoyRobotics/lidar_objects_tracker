@@ -109,6 +109,10 @@ void ObjectsTracker::scanCallback(
   // Convert LaserScan to 2D points
   open3d::geometry::PointCloud pc = laserScanToPointCloud(msg);
 
+  if (pc.points_.size() == 0) {
+    return;
+  }
+
   {  // Transform
     geometry_msgs::msg::TransformStamped tf_target_frame;
     try {
@@ -130,6 +134,10 @@ void ObjectsTracker::scanCallback(
     pc = static_bg_subtractor_->filter(pc, target_header);
   }
 
+  if (pc.points_.size() == 0) {
+    return;
+  }
+
   // Radius outlier removal: remove points with too few neighbours within a radius
   if (enable_radius_outlier_removal_) {
     auto [filtered_pc, _] = pc.RemoveRadiusOutliers(
@@ -137,8 +145,7 @@ void ObjectsTracker::scanCallback(
     pc = std::move(*filtered_pc);
   }
 
-  if (pc.points_.empty()) {
-    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "No points after processing");
+  if (pc.points_.size() == 0) {
     return;
   }
 
