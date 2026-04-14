@@ -74,7 +74,8 @@ public:
     info.dt = dt;
 
     if (dt <= 0.0 || dt > max_dt_) {
-      throw std::runtime_error("Invalid dt");
+      info.success = false;
+      return info;
     }
 
     // 1. Predict Bernoulli tracks

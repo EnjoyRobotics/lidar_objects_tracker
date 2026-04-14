@@ -199,10 +199,8 @@ void ObjectsTracker::scanCallback(
 
   // Update tracker
   UpdateInfo track_update_info;
-  try {
-    track_update_info = tracker_->updateTracks(centroids);
-  } catch (const std::runtime_error & e) {
-    RCLCPP_WARN(get_logger(), "Tracker update failed: %s", e.what());
+  track_update_info = tracker_->updateTracks(centroids);
+  if (!track_update_info.success) {
     return;
   }
   RCLCPP_DEBUG(

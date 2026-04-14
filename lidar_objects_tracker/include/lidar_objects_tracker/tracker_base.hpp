@@ -30,6 +30,7 @@ struct Track
 struct UpdateInfo
 {
   // Global update info
+  bool success = true;
   float dt;
   std::set<uint32_t> births;
   std::set<uint32_t> deaths;

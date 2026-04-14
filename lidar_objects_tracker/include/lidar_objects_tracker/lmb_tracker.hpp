@@ -76,9 +76,8 @@ public:
     update_info.dt = dt;
     last_update_time_ = current_time;
     if (dt < 1e-6 || dt > max_dt_) {
-      std::stringstream ss;
-      ss << "Unrealistic dt (" << dt << " s), skipping prediction step.";
-      throw std::runtime_error(ss.str());
+      update_info.success = false;
+      return update_info;
     }
     RCLCPP_DEBUG(logger_, "===============================");
     RCLCPP_DEBUG(logger_, "Updating tracks with dt: %.3f s", dt);
