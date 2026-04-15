@@ -393,7 +393,7 @@ void ObjectsTracker::visualizationTimerCallback()
       marker_id.pose.position.z = 0.5;
       std::stringstream ss;
       ss << "#" << id << "\n";
-      ss << "exist_prob:" << std::setprecision(2) << track.existence_probability;
+      ss << "exist_prob:" << std::fixed << std::setprecision(0) << track.existence_probability * 100.0f << "%";
       marker_id.text = ss.str();
       marker_array->markers.push_back(marker_id);
     }
@@ -421,7 +421,7 @@ void ObjectsTracker::visualizationTimerCallback()
       marker_unconfirmed_text.pose.position.y = state(1);
       marker_unconfirmed_text.pose.position.z = 0.3;
       std::stringstream ss;
-      ss << "exist_prob:" << std::setprecision(2) << track.existence_probability;
+      ss << "exist_prob:" << std::fixed << std::setprecision(0) << track.existence_probability * 100.0f << "%";
       marker_unconfirmed_text.text = ss.str();
       marker_array->markers.push_back(marker_unconfirmed_text);
     }
