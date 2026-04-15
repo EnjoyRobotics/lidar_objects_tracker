@@ -266,21 +266,20 @@ public:
       }
     }
 
-    // Step 6: Prune tracks with low existence probability or excessive covariance
+    // Step 6: Prune tracks with low existence probability; clamp excessive covariance
     std::vector<uint32_t> tracks_to_erase;
     for (const auto & [id, track] : tracks_) {
       if (track.existence_probability < death_existence_prob_) {
         tracks_to_erase.push_back(id);
         RCLCPP_DEBUG(logger_, "Deleting Track ID: %u due to low existence probability", id);
-      } else if (track.kf->covariance(0, 0) > max_position_variance_ ||
-                 track.kf->covariance(1, 1) > max_position_variance_)
-      {
-        tracks_to_erase.push_back(id);
-        RCLCPP_DEBUG(logger_, "Deleting Track ID: %u due to excessive position covariance", id);
       }
     }
     for (const auto & id : tracks_to_erase) {
       tracks_.erase(id);
+    }
+    for (auto & [id, track] : tracks_) {
+      track.kf->covariance(0, 0) = std::min(track.kf->covariance(0, 0), max_position_variance_);
+      track.kf->covariance(1, 1) = std::min(track.kf->covariance(1, 1), max_position_variance_);
     }
 
     // Step 7: Confirm tracks that crossed the threshold
@@ -289,8 +288,6 @@ public:
         track.confirmed = true;
       }
     }
-
-    printTrackInfo();
 
     return true;
   }
@@ -301,41 +298,6 @@ public:
   }
 
 private:
-  void printTrackInfo() const
-  {
-    std::vector<std::pair<uint32_t, float>> confirmed, unconfirmed;
-    for (const auto & [id, track] : tracks_) {
-      if (track.confirmed) {
-        confirmed.emplace_back(id, track.existence_probability);
-      } else {
-        unconfirmed.emplace_back(id, track.existence_probability);
-      }
-    }
-    auto cmp = [](const auto & a, const auto & b) { return a.second > b.second; };
-    std::sort(confirmed.begin(), confirmed.end(), cmp);
-    std::sort(unconfirmed.begin(), unconfirmed.end(), cmp);
-
-    if (!confirmed.empty()) {
-      std::stringstream ss_confirmed;
-      ss_confirmed << "Confirmed (" << confirmed.size() << "):";
-      for (const auto & [id, r] : confirmed) {
-        ss_confirmed << " #" << id << "=" << std::fixed << std::setprecision(2) << r;
-      }
-      RCLCPP_INFO(logger_, "%s", ss_confirmed.str().c_str());
-    }
-
-    if (!unconfirmed.empty()) {
-      std::stringstream ss_unconfirmed;
-      const size_t n = std::min<size_t>(3, unconfirmed.size());
-      ss_unconfirmed << "Unconfirmed (" << unconfirmed.size() << "), top " << n << ":";
-      for (size_t i = 0; i < n; ++i) {
-        ss_unconfirmed << " #" << unconfirmed[i].first
-                       << "=" << std::fixed << std::setprecision(2) << unconfirmed[i].second;
-      }
-      RCLCPP_INFO(logger_, "%s", ss_unconfirmed.str().c_str());
-    }
-  }
-
   std::map<uint32_t, Track> tracks_;
   rclcpp::Clock::SharedPtr clock_;  // To get dt
   rclcpp::Logger logger_ = rclcpp::get_logger("LMBTracker");
@@ -350,7 +312,7 @@ private:
   float detection_prob_;  // P(existing object is detected)
   float confirmation_existence_prob_;  // Existence probability needed to confirm a track
   float merge_distance_;  // Euclidean distance below which two confirmed tracks are merged (m)
-  float max_position_variance_;  // P(0,0) or P(1,1) above this prunes the track (m^2)
+  float max_position_variance_;  // P(0,0) and P(1,1) are clamped to this value (m^2)
   float kf_pos_uncertainty_;  // for Kalman Filter initialization, m
   float kf_vel_uncertainty_;  // for Kalman Filter initialization, m/s
   float kf_acc_uncertainty_;  // for Kalman Filter initialization, m/s^2
