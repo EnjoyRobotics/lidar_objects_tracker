@@ -41,6 +41,8 @@ public:
     node.declare_parameter<double>("lmb_tracker.death_existence_prob", 0.05);
     node.declare_parameter<double>("lmb_tracker.survival_prob", 0.99);
     node.declare_parameter<double>("lmb_tracker.detection_prob", 0.99);
+    node.declare_parameter<double>("lmb_tracker.confirmation_existence_prob", 0.7);
+    node.declare_parameter<double>("lmb_tracker.merge_distance", 0.5);
     node.declare_parameter<double>("kalman_filter.pos_uncertainty", 0.2);
     node.declare_parameter<double>("kalman_filter.vel_uncertainty", 0.4);
     node.declare_parameter<double>("kalman_filter.acc_uncertainty", 1.0);
@@ -55,6 +57,11 @@ public:
       static_cast<float>(node.get_parameter("lmb_tracker.survival_prob").as_double());
     detection_prob_ =
       static_cast<float>(node.get_parameter("lmb_tracker.detection_prob").as_double());
+    confirmation_existence_prob_ =
+      static_cast<float>(
+      node.get_parameter("lmb_tracker.confirmation_existence_prob").as_double());
+    merge_distance_ =
+      static_cast<float>(node.get_parameter("lmb_tracker.merge_distance").as_double());
     kf_pos_uncertainty_ =
       static_cast<float>(node.get_parameter("kalman_filter.pos_uncertainty").as_double());
     kf_vel_uncertainty_ =
@@ -133,6 +140,11 @@ public:
       // Update existence probability
       r = 1 - (1 - r) * (1 - detection_prob_);
 
+      // Confirm track once threshold is reached
+      if (!track.confirmed && r >= confirmation_existence_prob_) {
+        track.confirmed = true;
+      }
+
       RCLCPP_DEBUG(
         logger_, "Updated Track ID: %u, New Existence Probability: %.3f",
         id, track.existence_probability);
@@ -176,6 +188,8 @@ public:
       Track new_track;
       new_track.kf = kf;
       new_track.existence_probability = birth_existence_prob_;
+      new_track.confirmed = false;
+      new_track.birth_time = current_time;
       tracks_.emplace(new_id, std::move(new_track));
 
       update_info.births.insert(new_id);
@@ -183,6 +197,41 @@ public:
       RCLCPP_DEBUG(
         logger_, "Created new Track ID: %u at position (%.2f, %.2f)",
         new_id, meas(0), meas(1));
+    }
+
+    // Merge nearby tracks: keep the older one, discard the newer
+    if (merge_distance_ > 0.0f) {
+      std::set<uint32_t> merged_away;
+      for (auto it_a = tracks_.begin(); it_a != tracks_.end(); ++it_a) {
+        if (merged_away.count(it_a->first)) {
+          continue;
+        }
+        for (auto it_b = std::next(it_a); it_b != tracks_.end(); ++it_b) {
+          if (merged_away.count(it_b->first)) {
+            continue;
+          }
+          const Eigen::Vector2f pos_a = it_a->second.kf->state.head<2>();
+          const Eigen::Vector2f pos_b = it_b->second.kf->state.head<2>();
+          if ((pos_a - pos_b).norm() < merge_distance_) {
+            // Keep the older track (earlier birth_time), discard the newer
+            const bool a_is_older =
+              it_a->second.birth_time <= it_b->second.birth_time;
+            const uint32_t keep_id = a_is_older ? it_a->first : it_b->first;
+            const uint32_t drop_id = a_is_older ? it_b->first : it_a->first;
+            // Carry over confirmed status
+            tracks_[keep_id].confirmed =
+              tracks_[keep_id].confirmed || tracks_[drop_id].confirmed;
+            merged_away.insert(drop_id);
+            update_info.merges.insert(drop_id);
+            RCLCPP_DEBUG(
+              logger_, "Merging Track ID: %u into Track ID: %u",
+              drop_id, keep_id);
+          }
+        }
+      }
+      for (const auto & id : merged_away) {
+        tracks_.erase(id);
+      }
     }
 
     return update_info;
@@ -205,6 +254,8 @@ private:
   float death_existence_prob_;
   float survival_prob_;  // P(existing object survives next step)
   float detection_prob_;  // P(existing object is detected)
+  float confirmation_existence_prob_;  // Existence probability needed to confirm a track
+  float merge_distance_;  // Euclidean distance below which two tracks are merged (m)
   float kf_pos_uncertainty_;  // for Kalman Filter initialization, m
   float kf_vel_uncertainty_;  // for Kalman Filter initialization, m/s
   float kf_acc_uncertainty_;  // for Kalman Filter initialization, m/s^2

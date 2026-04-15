@@ -200,6 +200,9 @@ void ObjectsTracker::scanCallback(
   const auto & tracks = tracker_->getTracks();
   tracked_objects_msg.objects.reserve(tracks.size());
   for (const auto & [id, track] : tracks) {
+    if (!track.confirmed) {
+      continue;
+    }
     lidar_objects_tracker_msgs::msg::TrackedObject tracked_object_msg;
     const Eigen::Vector4f & state = track.kf->state;
     tracked_object_msg.header.frame_id = target_frame_;
@@ -209,6 +212,8 @@ void ObjectsTracker::scanCallback(
     tracked_object_msg.position.y = state(1);
     tracked_object_msg.velocity.x = state(2);
     tracked_object_msg.velocity.y = state(3);
+    tracked_object_msg.confirmed = track.confirmed;
+    tracked_object_msg.birth_time = track.birth_time;
     tracked_objects_msg.objects.push_back(tracked_object_msg);
   }
   tracked_objects_pub_->publish(tracked_objects_msg);
@@ -311,8 +316,11 @@ void ObjectsTracker::visualizationTimerCallback()
     }
     marker_array->markers.push_back(marker_centroids);
 
-    // Tracked objects
+    // Tracked objects (confirmed only)
     for (const auto & [id, track] : tracks) {
+      if (!track.confirmed) {
+        continue;
+      }
       const Eigen::Vector4f & state = track.kf->state;
       const Eigen::Matrix4f & P = track.kf->covariance;
 

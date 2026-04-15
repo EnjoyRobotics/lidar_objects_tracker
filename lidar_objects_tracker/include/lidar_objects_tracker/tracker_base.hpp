@@ -10,6 +10,7 @@
 #define LIDAR_OBJECTS_TRACKER__TRACKER_BASE_HPP_
 
 #include <Eigen/Core>
+#include <rclcpp/rclcpp.hpp>
 
 #include <map>
 #include <memory>
@@ -25,6 +26,8 @@ struct Track
 {
   std::shared_ptr<KalmanFilter2D> kf;
   float existence_probability;
+  bool confirmed = false;
+  rclcpp::Time birth_time;
 };
 
 struct UpdateInfo
@@ -34,6 +37,7 @@ struct UpdateInfo
   float dt;
   std::set<uint32_t> births;
   std::set<uint32_t> deaths;
+  std::set<uint32_t> merges;  // IDs removed due to merging into a nearby older track
 
   struct TrackUpdateInfo
   {
