@@ -33,13 +33,14 @@ namespace lidar_objects_tracker
  * This closes the small gaps that cause flickering at object edges.
  *
  * Parameters (namespaced under "static_bg_subtractor"):
- *   - resolution        : grid cell size in metres (default 0.1)
- *   - hit_increment     : probability increase on a hit (default 0.1)
- *   - miss_decrement    : probability decrease when not hit (default 0.02)
- *   - threshold         : cells above this probability are treated as static (default 0.7)
- *   - inflation_radius  : number of cells to inflate around each occupied cell (default 1)
- *   - publish_grid      : publish the occupancy grid for debug (default false)
- *   - grid_half_size    : half-width/height of the grid in metres (default 20.0)
+ *   - resolution        : grid cell size in metres
+ *   - hit_increment     : probability increase on a hit
+ *   - miss_decrement    : probability decrease when not hit
+ *   - threshold         : cells above this probability are treated as static
+ *   - inflation_radius  : number of cells to inflate around each occupied cell
+ *   - publish_grid                : publish the occupancy grid for debug
+ *   - grid_size                    : width/height of the grid in metres
+ *   - initialize_with_first_scan   : set hit cells to max probability on the first scan
  */
 class StaticBackgroundSubtractor
 {
@@ -53,7 +54,8 @@ public:
     node.declare_parameter<double>("static_bg_subtractor.threshold", 0.7);
     node.declare_parameter<int>("static_bg_subtractor.inflation_radius", 1);
     node.declare_parameter<bool>("static_bg_subtractor.publish_grid", false);
-    node.declare_parameter<double>("static_bg_subtractor.grid_half_size", 20.0);
+    node.declare_parameter<double>("static_bg_subtractor.grid_size", 10.0);
+    node.declare_parameter<bool>("static_bg_subtractor.initialize_with_first_scan", true);
 
     resolution_ =
       static_cast<float>(node.get_parameter("static_bg_subtractor.resolution").as_double());
@@ -65,11 +67,13 @@ public:
       static_cast<float>(node.get_parameter("static_bg_subtractor.threshold").as_double());
     inflation_radius_ = node.get_parameter("static_bg_subtractor.inflation_radius").as_int();
     publish_grid_ = node.get_parameter("static_bg_subtractor.publish_grid").as_bool();
-    grid_half_size_ =
-      static_cast<float>(node.get_parameter("static_bg_subtractor.grid_half_size").as_double());
+    grid_world_size_ =
+      static_cast<float>(node.get_parameter("static_bg_subtractor.grid_size").as_double());
+    initialize_with_first_scan_ =
+      node.get_parameter("static_bg_subtractor.initialize_with_first_scan").as_bool();
 
     // Grid dimensions: centred at origin
-    grid_size_ = static_cast<int>(std::ceil(2.0f * grid_half_size_ / resolution_));
+    grid_size_ = static_cast<int>(std::ceil(grid_world_size_ / resolution_));
     grid_.assign(grid_size_ * grid_size_, 0.0f);
 
     if (publish_grid_) {
@@ -79,9 +83,10 @@ public:
 
     RCLCPP_INFO(
       logger_,
-      "StaticBackgroundSubtractor: resolution=%.3f, grid=%dx%d cells (%.1fm x %.1fm)",
+      "StaticBackgroundSubtractor: resolution=%.3f, grid=%dx%d cells (%.1fm x %.1fm), init_first_scan=%s",
       resolution_, grid_size_, grid_size_,
-      2.0f * grid_half_size_, 2.0f * grid_half_size_);
+      grid_world_size_, grid_world_size_,
+      initialize_with_first_scan_ ? "true" : "false");
   }
 
   /** @brief Update the occupancy grid and return only non-static points.
@@ -111,11 +116,14 @@ public:
     // --- 2. Update probabilities for every cell ---
     for (int i = 0; i < grid_size_ * grid_size_; ++i) {
       if (hit[i]) {
-        grid_[i] = std::min(1.0f, grid_[i] + hit_increment_);
+        grid_[i] = is_first_scan_ && initialize_with_first_scan_
+          ? 1.0f
+          : std::min(1.0f, grid_[i] + hit_increment_);
       } else {
         grid_[i] = std::max(0.0f, grid_[i] - miss_decrement_);
       }
     }
+    is_first_scan_ = false;
 
     // --- 3. Inflate thresholded grid: neighbours of occupied cells are also occupied ---
     const std::vector<bool> inflated = inflate(grid_, threshold_);
@@ -142,7 +150,7 @@ private:
   // Convert world coordinate (metres) to grid index
   inline int worldToIndex(float world) const
   {
-    return static_cast<int>(std::floor((world + grid_half_size_) / resolution_));
+    return static_cast<int>(std::floor((world + grid_world_size_ * 0.5f) / resolution_));
   }
 
   inline bool isValid(int ix, int iy) const
@@ -187,8 +195,8 @@ private:
     msg.info.resolution = resolution_;
     msg.info.width = static_cast<uint32_t>(grid_size_);
     msg.info.height = static_cast<uint32_t>(grid_size_);
-    msg.info.origin.position.x = -grid_half_size_;
-    msg.info.origin.position.y = -grid_half_size_;
+    msg.info.origin.position.x = -grid_world_size_ * 0.5f;
+    msg.info.origin.position.y = -grid_world_size_ * 0.5f;
     msg.info.origin.position.z = 0.0;
     msg.info.origin.orientation.w = 1.0;
 
@@ -210,7 +218,9 @@ private:
   float threshold_;
   int inflation_radius_;  // cells to inflate around each occupied cell
   bool publish_grid_;
-  float grid_half_size_;
+  float grid_world_size_;  // full width/height of the grid in metres
+  bool initialize_with_first_scan_;
+  bool is_first_scan_{true};
 
   int grid_size_;                // cells per axis
   std::vector<float> grid_;     // flat [iy * grid_size_ + ix], values in [0, 1]

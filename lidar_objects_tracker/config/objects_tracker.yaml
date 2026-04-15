@@ -18,7 +18,8 @@ objects_tracker_node:
       miss_decrement: 0.003
       threshold: 0.7
       publish_grid: true
-      grid_half_size: 20.0
+      grid_size: 15.0
+      initialize_with_first_scan: true
       inflation_radius: 1
 
     enable_radius_outlier_removal: true
