@@ -44,11 +44,7 @@ struct UpdateInfo
   std::map<uint32_t, TrackUpdateInfo> updates;
 };
 
-/** @brief Abstract base class for multi-object trackers
- *
- * Both LMBTracker and PMBMTracker implement this interface.
- * Note: uint32_t is used for IDs, size_t for indices
- */
+/** @brief Abstract base class for multi-object trackers */
 class TrackerBase
 {
 public:

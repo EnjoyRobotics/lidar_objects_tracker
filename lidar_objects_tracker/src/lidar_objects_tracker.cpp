@@ -16,7 +16,7 @@
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "lidar_objects_tracker/lidar_objects_tracker.hpp"
 #include "lidar_objects_tracker/lmb_tracker.hpp"
-#include "lidar_objects_tracker/pmbm_tracker.hpp"
+
 #include "tf2_eigen/tf2_eigen.hpp"
 
 namespace lidar_objects_tracker
@@ -68,22 +68,8 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
       radius_outlier_removal_radius_, radius_outlier_removal_min_points_);
   }
 
-  declare_parameter<std::string>("tracker", "lmb");
-  const std::string tracker_type = get_parameter("tracker").as_string();
-
-  tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
-  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
-
-  if (tracker_type == "lmb") {
-    tracker_ = std::make_unique<LMBTracker>(*this);
-    RCLCPP_INFO(get_logger(), "Using LMB tracker");
-  } else if (tracker_type == "pmbm") {
-    tracker_ = std::make_unique<PMBMTracker>(*this);
-    RCLCPP_INFO(get_logger(), "Using PMBM tracker");
-  } else {
-    throw std::invalid_argument(
-      "Unknown tracker type: '" + tracker_type + "'. Valid options: 'lmb', 'pmbm'");
-  }
+  tracker_ = std::make_unique<LMBTracker>(*this);
+  RCLCPP_INFO(get_logger(), "Using LMB tracker");
 
   scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
     "scan", 10,
