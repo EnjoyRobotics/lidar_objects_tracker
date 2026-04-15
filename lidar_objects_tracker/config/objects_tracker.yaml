@@ -5,7 +5,7 @@ objects_tracker_node:
     publish_filtered_pcl: true
 
     cluster:
-      neighbor_radius: 0.5
+      neighbor_radius: 0.6
       min_points: 15
 
     enable_static_bg_subtraction: true
@@ -28,12 +28,15 @@ objects_tracker_node:
 
     lmb_tracker:
       max_dt: 1.0
-      gate_threshold: 6.0
-      birth_existence_prob: 0.005
-      death_existence_prob: 0.05
-      survival_prob: 0.9999
-      detection_prob: 0.04
-
+      gate_threshold: 9.0
+      birth_existence_prob: 0.05
+      death_existence_prob: 0.01
+      survival_prob: 0.97
+      detection_prob: 0.8
+      clutter_intensity: 0.7
+      confirmation_existence_prob: 0.5
+      merge_distance: 0.01
+      max_position_variance: 1.5
 
     kalman_filter:
       pos_uncertainty: 0.2

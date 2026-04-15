@@ -14,7 +14,6 @@
 
 #include <map>
 #include <memory>
-#include <set>
 #include <vector>
 
 #include "lidar_objects_tracker/kalman_filter.hpp"
@@ -30,23 +29,6 @@ struct Track
   rclcpp::Time birth_time;
 };
 
-struct UpdateInfo
-{
-  // Global update info
-  bool success = true;
-  float dt;
-  std::set<uint32_t> births;
-  std::set<uint32_t> deaths;
-  std::set<uint32_t> merges;  // IDs removed due to merging into a nearby older track
-
-  struct TrackUpdateInfo
-  {
-    std::map<size_t, float> measurement_weights;
-  };
-
-  // Per track update info
-  std::map<uint32_t, TrackUpdateInfo> updates;
-};
 
 /** @brief Abstract base class for multi-object trackers */
 class TrackerBase
@@ -56,9 +38,9 @@ public:
 
   /** @brief Update all tracks with new measurements
    * @param measurements 2D point measurements (centroids)
-   * @return UpdateInfo describing births, deaths and per-track association info
+   * @return true on success, false if update was skipped (e.g. bad dt)
    */
-  virtual UpdateInfo updateTracks(const std::vector<Eigen::Vector2f> & measurements) = 0;
+  virtual bool updateTracks(const std::vector<Eigen::Vector2f> & measurements) = 0;
 
   /** @brief Get the current set of tracks
    * @return const reference to the internal tracks map (id -> Track)

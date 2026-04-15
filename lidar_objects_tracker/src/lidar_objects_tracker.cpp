@@ -68,6 +68,9 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
       radius_outlier_removal_radius_, radius_outlier_removal_min_points_);
   }
 
+  tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
   tracker_ = std::make_unique<LMBTracker>(*this);
   RCLCPP_INFO(get_logger(), "Using LMB tracker");
 
@@ -184,20 +187,16 @@ void ObjectsTracker::scanCallback(
   }
 
   // Update tracker
-  UpdateInfo track_update_info;
-  track_update_info = tracker_->updateTracks(centroids);
-  if (!track_update_info.success) {
+  if (!tracker_->updateTracks(centroids)) {
     return;
   }
   RCLCPP_DEBUG(
-    get_logger(), "Track update: %zu births, %zu deaths, %zu total tracks",
-    track_update_info.births.size(),
-    track_update_info.deaths.size(),
+    get_logger(), "Track update: %zu total tracks",
     tracker_->getTracks().size());
 
   // Publish
   lidar_objects_tracker_msgs::msg::TrackedObjects tracked_objects_msg;
-  const auto & tracks = tracker_->getTracks();
+  const auto tracks = tracker_->getTracks();
   tracked_objects_msg.objects.reserve(tracks.size());
   for (const auto & [id, track] : tracks) {
     if (!track.confirmed) {
@@ -223,7 +222,7 @@ void ObjectsTracker::scanCallback(
     vis_state_.centroids = centroids;
     vis_state_.bboxes = bboxes;
     vis_state_.tracks = tracks;
-    vis_state_.stamp = msg->header.stamp;
+    vis_state_.stamp = this->now();
     vis_state_.valid = true;
   }
 }
@@ -398,6 +397,35 @@ void ObjectsTracker::visualizationTimerCallback()
       marker_id.text = ss.str();
       marker_array->markers.push_back(marker_id);
     }
+
+    // Unconfirmed tracks: existence probability text
+    for (const auto & [id, track] : tracks) {
+      if (track.confirmed) {
+        continue;
+      }
+      const Eigen::Vector4f & state = track.kf->state;
+
+      visualization_msgs::msg::Marker marker_unconfirmed_text;
+      marker_unconfirmed_text.header.frame_id = target_frame_;
+      marker_unconfirmed_text.header.stamp = stamp;
+      marker_unconfirmed_text.ns = "unconfirmed_track_ids";
+      marker_unconfirmed_text.id = id;
+      marker_unconfirmed_text.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+      marker_unconfirmed_text.action = visualization_msgs::msg::Marker::ADD;
+      marker_unconfirmed_text.scale.z = 0.08;
+      marker_unconfirmed_text.color.r = 1.0;
+      marker_unconfirmed_text.color.g = 1.0;
+      marker_unconfirmed_text.color.b = 1.0;
+      marker_unconfirmed_text.color.a = 1.0;
+      marker_unconfirmed_text.pose.position.x = state(0);
+      marker_unconfirmed_text.pose.position.y = state(1);
+      marker_unconfirmed_text.pose.position.z = 0.3;
+      std::stringstream ss;
+      ss << "exist_prob:" << std::setprecision(2) << track.existence_probability;
+      marker_unconfirmed_text.text = ss.str();
+      marker_array->markers.push_back(marker_unconfirmed_text);
+    }
+
   }
 
   marker_pub_->publish(std::move(marker_array));

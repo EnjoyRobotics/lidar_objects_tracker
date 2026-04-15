@@ -69,7 +69,7 @@ private:
     std::vector<Eigen::Vector2f> centroids;
     std::vector<std::optional<open3d::geometry::AxisAlignedBoundingBox>> bboxes;
     std::map<uint32_t, Track> tracks;
-    rclcpp::Time stamp{0, 0, RCL_ROS_TIME};
+    rclcpp::Time stamp{0, 0, RCL_SYSTEM_TIME};
     bool valid{false};
   };
   VisualizationState vis_state_;

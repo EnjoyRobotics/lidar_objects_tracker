@@ -103,6 +103,22 @@ public:
     return mahalanobis_dist2;
   }
 
+  /** @brief Compute Gaussian likelihood of a measurement without updating the state
+   * @param z Measurement vector [x, y]
+   * @return Likelihood p(z | track)
+   */
+  float likelihood(const Eigen::Vector2f & z) const
+  {
+    Eigen::Vector2f y = z - H_ * x_;
+    Eigen::Matrix2f S = H_ * P_ * H_.transpose() + R_;
+    const float det = S.determinant();
+    if (det <= 0.0f) {
+      return 0.0f;
+    }
+    const float mahal2 = y.transpose() * S.inverse() * y;
+    return std::exp(-0.5f * mahal2) / std::sqrt((2.0f * M_PI) * (2.0f * M_PI) * det);
+  }
+
   /** @brief Calculate squared Mahalanobis distance for a given measurement
    * without updating the state
    * @param z Measurement vector [x, y]
