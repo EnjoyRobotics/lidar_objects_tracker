@@ -47,7 +47,6 @@ public:
     node.declare_parameter<double>("lmb_tracker.detection_prob", 0.99);
     node.declare_parameter<double>("lmb_tracker.confirmation_existence_prob", 0.7);
     node.declare_parameter<double>("lmb_tracker.merge_distance", 0.5);
-    node.declare_parameter<double>("lmb_tracker.max_position_variance", 1.0);
     node.declare_parameter<double>("kalman_filter.pos_uncertainty", 0.2);
     node.declare_parameter<double>("kalman_filter.vel_uncertainty", 0.4);
     node.declare_parameter<double>("kalman_filter.acc_uncertainty", 1.0);
@@ -69,8 +68,6 @@ public:
       node.get_parameter("lmb_tracker.confirmation_existence_prob").as_double());
     merge_distance_ =
       static_cast<float>(node.get_parameter("lmb_tracker.merge_distance").as_double());
-    max_position_variance_ =
-      static_cast<float>(node.get_parameter("lmb_tracker.max_position_variance").as_double());
     kf_pos_uncertainty_ =
       static_cast<float>(node.get_parameter("kalman_filter.pos_uncertainty").as_double());
     kf_vel_uncertainty_ =
@@ -277,10 +274,6 @@ public:
     for (const auto & id : tracks_to_erase) {
       tracks_.erase(id);
     }
-    for (auto & [id, track] : tracks_) {
-      track.kf->covariance(0, 0) = std::min(track.kf->covariance(0, 0), max_position_variance_);
-      track.kf->covariance(1, 1) = std::min(track.kf->covariance(1, 1), max_position_variance_);
-    }
 
     // Step 7: Confirm tracks that crossed the threshold
     for (auto & [id, track] : tracks_) {
@@ -312,7 +305,6 @@ private:
   float detection_prob_;  // P(existing object is detected)
   float confirmation_existence_prob_;  // Existence probability needed to confirm a track
   float merge_distance_;  // Euclidean distance below which two confirmed tracks are merged (m)
-  float max_position_variance_;  // P(0,0) and P(1,1) are clamped to this value (m^2)
   float kf_pos_uncertainty_;  // for Kalman Filter initialization, m
   float kf_vel_uncertainty_;  // for Kalman Filter initialization, m/s
   float kf_acc_uncertainty_;  // for Kalman Filter initialization, m/s^2

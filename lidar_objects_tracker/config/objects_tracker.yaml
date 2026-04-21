@@ -37,7 +37,6 @@ objects_tracker_node:
       clutter_intensity: 0.7  # expected number of clutter measurements per unit volume
       confirmation_existence_prob: 0.5  # existence probability above which a track is confirmed
       merge_distance: 0.01  # distance between two tracks below which the new is deleted (metres)
-      max_position_variance: 1.5  # clamp position variance
 
     kalman_filter:
       pos_uncertainty: 0.2  # initial position uncertainty (m)
