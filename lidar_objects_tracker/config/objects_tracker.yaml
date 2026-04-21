@@ -28,14 +28,19 @@ objects_tracker_node:
       radius: 0.2
 
     lmb_tracker:
-      gate_threshold: 6.0  # max Mahalanobis distance for associating measurements to tracks
+      gating:
+        mahal2: 9.0  # max squared Mahalanobis distance for associating measurements to tracks
+        dist2: 3.0  # max squared euclidean distance for associating measurements to tracks (meters)
       birth_existence_prob: 0.05  # initial existence probability assigned to a newborn track
       death_existence_prob: 0.01  # existence probability below which a track is deleted
       survival_prob: 0.99  # probability that a target survives between two consecutive scans
-      detection_prob: 0.9  # probability that an existing target is detected in a given scan
-      clutter_intensity: 0.7  # expected number of clutter measurements per unit volume
-      confirmation_existence_prob: 0.5  # existence probability above which a track is confirmed
-      merge_distance: 0.01  # distance between two tracks below which the new is deleted (metres)
+      detection_prob: 0.6  # probability that an existing target is detected in a given scan
+      clutter_intensity: 0.1  # expected number of clutter measurements per unit volume
+      confirmation_existence_prob: 0.7  # existence probability above which a track is confirmed
+      merging:
+        # both conditions must be true for merging
+        mahal2: 13.0  # squared mahal dist between two tracks (pos + vel) below which the newer one is deleted (meters)
+        dist2: 0.5  # max squared euclidean distance between two tracks (pos only) below which the newer one is deleted (meters)
 
     kalman_filter:
       pos_uncertainty: 0.2  # initial position uncertainty (m)

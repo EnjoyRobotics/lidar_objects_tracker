@@ -128,9 +128,35 @@ public:
   {
     Eigen::Vector2f y = z - H_ * x_;
     Eigen::Matrix2f S = H_ * P_ * H_.transpose() + R_;
-    Eigen::Matrix2f S_inv = S.inverse();
-    float mahalanobis_dist2 = y.transpose() * S_inv * y;
-    return mahalanobis_dist2;
+    const float det = S.determinant();
+    if (det <= 0.0f) {
+      return std::numeric_limits<float>::infinity();
+    }
+    return y.transpose() * S.inverse() * y;
+  }
+
+  /** @brief Mahalanobis distance between this and another track
+   * @param other Another KalmanFilter2D track
+   * @return Squared Mahalanobis distance between the two tracks
+   */
+  float mahalanobisDistance2(const KalmanFilter2D & other) const
+  {
+    Eigen::Vector4f diff = x_ - other.x_;
+    Eigen::Matrix4f S = P_ + other.P_;
+    const float det = S.determinant();
+    if (det <= 0.0f) {
+      return std::numeric_limits<float>::infinity();
+    }
+    return diff.transpose() * S.inverse() * diff;
+  }
+
+  /** @brief Squared euclidean distance from measurement
+   * @param Measurement vector [x, y]
+   */
+  float euclideanDistance2(const Eigen::Vector2f & z) const
+  {
+    Eigen::Vector2f diff = (H_ * x_) - z;
+    return diff.squaredNorm();
   }
 
   Eigen::Vector4f & state;  // Mirror of x_

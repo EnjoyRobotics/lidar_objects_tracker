@@ -38,21 +38,31 @@ public:
   : clock_(node.get_clock()),
     last_update_time_(node.get_clock()->now())
   {
-    node.declare_parameter<double>("lmb_tracker.clutter_intensity", 0.1);
-    node.declare_parameter<double>("lmb_tracker.gate_threshold", 6.0);
-    node.declare_parameter<double>("lmb_tracker.birth_existence_prob", 0.2);
-    node.declare_parameter<double>("lmb_tracker.death_existence_prob", 0.05);
+    // Gating parameters
+    node.declare_parameter<double>("lmb_tracker.gating.mahal2", 9.0);
+    node.declare_parameter<double>("lmb_tracker.gating.dist2", 3.0);
+
+    // Basic tracking parameters
+    node.declare_parameter<double>("lmb_tracker.birth_existence_prob", 0.05);
+    node.declare_parameter<double>("lmb_tracker.death_existence_prob", 0.01);
     node.declare_parameter<double>("lmb_tracker.survival_prob", 0.99);
-    node.declare_parameter<double>("lmb_tracker.detection_prob", 0.99);
+    node.declare_parameter<double>("lmb_tracker.detection_prob", 0.6);
+    node.declare_parameter<double>("lmb_tracker.clutter_intensity", 0.1);
     node.declare_parameter<double>("lmb_tracker.confirmation_existence_prob", 0.7);
-    node.declare_parameter<double>("lmb_tracker.merge_distance", 0.5);
+
+    // Merging parameters
+    node.declare_parameter<double>("lmb_tracker.merging.mahal2", 13.0);
+    node.declare_parameter<double>("lmb_tracker.merging.dist2", 3.0);
+
+    // Kalman Filter parameters
     node.declare_parameter<double>("kalman_filter.pos_uncertainty", 0.2);
     node.declare_parameter<double>("kalman_filter.vel_uncertainty", 0.4);
     node.declare_parameter<double>("kalman_filter.acc_uncertainty", 1.0);
-    clutter_intensity_ =
-      static_cast<float>(node.get_parameter("lmb_tracker.clutter_intensity").as_double());
-    gate_threshold_ =
-      static_cast<float>(node.get_parameter("lmb_tracker.gate_threshold").as_double());
+
+    gate_mahal2_ =
+      static_cast<float>(node.get_parameter("lmb_tracker.gating.mahal2").as_double());
+    dist2_threshold_ =
+      static_cast<float>(node.get_parameter("lmb_tracker.gating.dist2").as_double());
     birth_existence_prob_ =
       static_cast<float>(node.get_parameter("lmb_tracker.birth_existence_prob").as_double());
     death_existence_prob_ =
@@ -61,11 +71,15 @@ public:
       static_cast<float>(node.get_parameter("lmb_tracker.survival_prob").as_double());
     detection_prob_ =
       static_cast<float>(node.get_parameter("lmb_tracker.detection_prob").as_double());
+    clutter_intensity_ =
+      static_cast<float>(node.get_parameter("lmb_tracker.clutter_intensity").as_double());
     confirmation_existence_prob_ =
       static_cast<float>(
       node.get_parameter("lmb_tracker.confirmation_existence_prob").as_double());
-    merge_distance_ =
-      static_cast<float>(node.get_parameter("lmb_tracker.merge_distance").as_double());
+    merge_mahal2_ =
+      static_cast<float>(node.get_parameter("lmb_tracker.merging.mahal2").as_double());
+    merge_dist2_ =
+      static_cast<float>(node.get_parameter("lmb_tracker.merging.dist2").as_double());
     kf_pos_uncertainty_ =
       static_cast<float>(node.get_parameter("kalman_filter.pos_uncertainty").as_double());
     kf_vel_uncertainty_ =
@@ -119,8 +133,13 @@ public:
       std::stringstream ss;
       ss << "Track " << id << " using measurements: ";
       for (size_t j = 0; j < measurements.size(); ++j) {
-        const float d2 = track.kf->mahalanobisDistance2(measurements[j]);
-        if (d2 >= gate_threshold_) {
+        const float dist2 = track.kf->euclideanDistance2(measurements[j]);
+        if (dist2 > dist2_threshold_) {
+          continue;
+        }
+
+        const float mahal2 = track.kf->mahalanobisDistance2(measurements[j]);
+        if (mahal2 >= gate_mahal2_) {
           continue;
         }
         const float L = track.kf->likelihood(measurements[j]);
@@ -228,7 +247,7 @@ public:
     }
 
     // Step 5: Merge nearby confirmed tracks — keep older, transfer existence probability
-    if (merge_distance_ > 0.0f) {
+    if (merge_mahal2_ > 0.0f || merge_dist2_ > 0.0f) {
       std::set<uint32_t> merged_away;
       for (auto it_a = tracks_.begin(); it_a != tracks_.end(); ++it_a) {
         if (merged_away.count(it_a->first) || !it_a->second.confirmed) {
@@ -240,7 +259,25 @@ public:
           }
           const Eigen::Vector2f pos_a = it_a->second.kf->state.head<2>();
           const Eigen::Vector2f pos_b = it_b->second.kf->state.head<2>();
-          if ((pos_a - pos_b).norm() < merge_distance_) {
+
+          // Check both conditions: position-only euclidean distance and full state mahalanobis distance
+          const float pos_dist2 = (pos_a - pos_b).squaredNorm();
+          const bool pos_matches = (merge_dist2_ > 0.0f) && (pos_dist2 <= merge_dist2_);
+
+          const float state_mahal2 = it_a->second.kf->mahalanobisDistance2(pos_b);
+          const bool state_matches = (merge_mahal2_ > 0.0f) && (state_mahal2 <= merge_mahal2_);
+
+          // Both conditions must be true if both are set; if only one is set, only that one matters
+          bool should_merge = false;
+          if (merge_dist2_ > 0.0f && merge_mahal2_ > 0.0f) {
+            should_merge = pos_matches && state_matches;
+          } else if (merge_dist2_ > 0.0f) {
+            should_merge = pos_matches;
+          } else if (merge_mahal2_ > 0.0f) {
+            should_merge = state_matches;
+          }
+
+          if (should_merge) {
             const bool a_is_older =
               it_a->second.birth_time <= it_b->second.birth_time;
             const uint32_t keep_id = a_is_older ? it_a->first : it_b->first;
@@ -291,14 +328,16 @@ private:
   rclcpp::Logger logger_ = rclcpp::get_logger("LMBTracker");
 
   rclcpp::Time last_update_time_;
+  float gate_mahal2_;  // Max squared Mahalanobis distance for gating
+  float dist2_threshold_;  // Max squared euclidean distance to associate measurement to track
   float clutter_intensity_;  // lambda_c: expected number of clutter measurements per unit volume
-  float gate_threshold_;  // ~95% confidence
   float birth_existence_prob_;  // Keep low so multiple confirmations needed
   float death_existence_prob_;
   float survival_prob_;  // P(existing object survives next step)
   float detection_prob_;  // P(existing object is detected)
   float confirmation_existence_prob_;  // Existence probability needed to confirm a track
-  float merge_distance_;  // Euclidean distance below which two confirmed tracks are merged (m)
+  float merge_mahal2_;  // Max squared Mahalanobis distance (state space) for merging two tracks
+  float merge_dist2_;  // Max squared euclidean distance (position only) for merging two tracks
   float kf_pos_uncertainty_;  // for Kalman Filter initialization, m
   float kf_vel_uncertainty_;  // for Kalman Filter initialization, m/s
   float kf_acc_uncertainty_;  // for Kalman Filter initialization, m/s^2
