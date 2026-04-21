@@ -1,12 +1,12 @@
 objects_tracker_node:
   ros__parameters:
-    target_frame: odom
-    visualize: true
+    target_frame: odom  # transform scan to this frame before processing
+    visualize: true  # publish marker array of clusters and tracks
     publish_filtered_pcl: true
 
     cluster:
       neighbor_radius: 0.6
-      min_points: 15
+      min_points: 5
 
     enable_static_bg_subtraction: true
     static_bg_subtractor:
@@ -14,32 +14,32 @@ objects_tracker_node:
       # With threshold = 0.7, scan freq = 10 Hz
       # Let it take 10 seconds to adapt to a new static object -> 0.7/(10*10) = 0.007
       # Let it take 10 seconds to forget a removed static object -> (1-0.7)/(10*10) = 0.003
-      hit_increment: 0.007
-      miss_decrement: 0.003
+      hit_increment: 0.007  # probability added to a cell when a point hits it
+      miss_decrement: 0.003  # probability removed from a cell when a scan misses it
       threshold: 0.7
       publish_grid: true
-      grid_size: 15.0
-      initialize_with_first_scan: true
-      inflation_radius: 1
+      grid_size: 15.0  # size of the square occupancy grid (meters)
+      initialize_with_first_scan: true  # pre-populate the grid using first scan
+      inflation_radius: 1  # number of cells to inflate around static cells
 
     enable_radius_outlier_removal: true
     radius_outlier_removal:
-      min_points: 15   # minimum neighbours required within radius to keep a point
-      radius: 0.2     # search radius in metres
+      min_points: 15
+      radius: 0.2
 
     lmb_tracker:
-      max_dt: 1.0
-      gate_threshold: 9.0
-      birth_existence_prob: 0.05
-      death_existence_prob: 0.01
-      survival_prob: 0.99
-      detection_prob: 0.6
-      clutter_intensity: 0.5
-      confirmation_existence_prob: 0.5
-      merge_distance: 0.01
-      max_position_variance: 1.5
+      max_dt: 1.0  # clamp update dt
+      gate_threshold: 6.0  # max Mahalanobis distance for associating measurements to tracks
+      birth_existence_prob: 0.05  # initial existence probability assigned to a newborn track
+      death_existence_prob: 0.01  # existence probability below which a track is deleted
+      survival_prob: 0.99  # probability that a target survives between two consecutive scans
+      detection_prob: 0.9  # probability that an existing target is detected in a given scan
+      clutter_intensity: 0.7  # expected number of clutter measurements per unit volume
+      confirmation_existence_prob: 0.5  # existence probability above which a track is confirmed
+      merge_distance: 0.01  # distance between two tracks below which the new is deleted (metres)
+      max_position_variance: 1.5  # clamp position variance
 
     kalman_filter:
-      pos_uncertainty: 0.2
-      vel_uncertainty: 0.6
-      acc_uncertainty: 1.0
+      pos_uncertainty: 0.2  # initial position uncertainty (m)
+      vel_uncertainty: 0.6  # initial velocity uncertainty (m/s)
+      acc_uncertainty: 1.0  # initial acceleration uncertainty (m/s²)
