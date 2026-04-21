@@ -39,7 +39,6 @@ public:
     last_update_time_(node.get_clock()->now())
   {
     node.declare_parameter<double>("lmb_tracker.clutter_intensity", 0.1);
-    node.declare_parameter<double>("lmb_tracker.max_dt", 1.0);
     node.declare_parameter<double>("lmb_tracker.gate_threshold", 6.0);
     node.declare_parameter<double>("lmb_tracker.birth_existence_prob", 0.2);
     node.declare_parameter<double>("lmb_tracker.death_existence_prob", 0.05);
@@ -52,7 +51,6 @@ public:
     node.declare_parameter<double>("kalman_filter.acc_uncertainty", 1.0);
     clutter_intensity_ =
       static_cast<float>(node.get_parameter("lmb_tracker.clutter_intensity").as_double());
-    max_dt_ = static_cast<float>(node.get_parameter("lmb_tracker.max_dt").as_double());
     gate_threshold_ =
       static_cast<float>(node.get_parameter("lmb_tracker.gate_threshold").as_double());
     birth_existence_prob_ =
@@ -76,18 +74,17 @@ public:
       static_cast<float>(node.get_parameter("kalman_filter.acc_uncertainty").as_double());
   }
 
-  bool updateTracks(const std::vector<Eigen::Vector2f> & measurements) override
+  void updateTracks(const std::vector<Eigen::Vector2f> & measurements) override
   {
     // Used for births
     std::set<size_t> used_measurements;
 
     // Get dt since last update
     const rclcpp::Time current_time = clock_->now();
-    const float dt = (current_time - last_update_time_).seconds();
+    const float dt = std::max<float>(
+        (current_time - last_update_time_).seconds(),
+        1e-3f);  // Avoid zero or negative dt
     last_update_time_ = current_time;
-    if (dt < 1e-6 || dt > max_dt_) {
-      return false;
-    }
     RCLCPP_DEBUG(logger_, "===============================");
     RCLCPP_DEBUG(logger_, "Updating tracks with dt: %.3f s", dt);
 
@@ -281,8 +278,6 @@ public:
         track.confirmed = true;
       }
     }
-
-    return true;
   }
 
   inline const std::map<uint32_t, Track> & getTracks() const override
@@ -295,7 +290,6 @@ private:
   rclcpp::Clock::SharedPtr clock_;  // To get dt
   rclcpp::Logger logger_ = rclcpp::get_logger("LMBTracker");
 
-  float max_dt_;
   rclcpp::Time last_update_time_;
   float clutter_intensity_;  // lambda_c: expected number of clutter measurements per unit volume
   float gate_threshold_;  // ~95% confidence

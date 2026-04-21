@@ -38,9 +38,8 @@ public:
 
   /** @brief Update all tracks with new measurements
    * @param measurements 2D point measurements (centroids)
-   * @return true on success, false if update was skipped (e.g. bad dt)
    */
-  virtual bool updateTracks(const std::vector<Eigen::Vector2f> & measurements) = 0;
+  virtual void updateTracks(const std::vector<Eigen::Vector2f> & measurements) = 0;
 
   /** @brief Get the current set of tracks
    * @return const reference to the internal tracks map (id -> Track)

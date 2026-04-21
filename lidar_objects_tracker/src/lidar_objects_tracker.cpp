@@ -187,9 +187,7 @@ void ObjectsTracker::scanCallback(
   }
 
   // Update tracker
-  if (!tracker_->updateTracks(centroids)) {
-    return;
-  }
+  tracker_->updateTracks(centroids);
   RCLCPP_DEBUG(
     get_logger(), "Track update: %zu total tracks",
     tracker_->getTracks().size());

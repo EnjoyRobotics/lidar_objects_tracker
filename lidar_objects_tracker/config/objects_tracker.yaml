@@ -28,7 +28,6 @@ objects_tracker_node:
       radius: 0.2
 
     lmb_tracker:
-      max_dt: 1.0  # clamp update dt
       gate_threshold: 6.0  # max Mahalanobis distance for associating measurements to tracks
       birth_existence_prob: 0.05  # initial existence probability assigned to a newborn track
       death_existence_prob: 0.01  # existence probability below which a track is deleted
