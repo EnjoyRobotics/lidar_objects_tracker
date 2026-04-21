@@ -72,7 +72,6 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
   tracker_ = std::make_unique<LMBTracker>(*this);
-  RCLCPP_INFO(get_logger(), "Using LMB tracker");
 
   scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
     "scan", 10,
