@@ -159,6 +159,18 @@ public:
     return diff.squaredNorm();
   }
 
+  /// @brief Getter for measurement matrix H
+  Eigen::Matrix<float, 2, 4> H() const
+  {
+    return H_;
+  }
+
+  /// @brief Getter for measurement noise covariance R
+  Eigen::Matrix2f R() const
+  {
+    return R_;
+  }
+
   Eigen::Vector4f & state;  // Mirror of x_
   Eigen::Matrix4f & covariance;  // Mirror of P_
 

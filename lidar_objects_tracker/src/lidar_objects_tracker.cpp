@@ -312,14 +312,35 @@ void ObjectsTracker::visualizationTimerCallback()
     }
     marker_array->markers.push_back(marker_centroids);
 
-    // Tracked objects (confirmed only)
+    // Tracked objects
     for (const auto & [id, track] : tracks) {
-      if (!track.confirmed) {
-        continue;
-      }
       const Eigen::Vector4f & state = track.kf->state;
       const Eigen::Matrix4f & P = track.kf->covariance;
 
+      if (!track.confirmed) {
+        // For unconfirmed tracks, only show existence probability
+        visualization_msgs::msg::Marker marker_id;
+        marker_id.header.frame_id = target_frame_;
+        marker_id.header.stamp = stamp;
+        marker_id.ns = "unconfirmed_track_existence";
+        marker_id.id = id;
+        marker_id.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+        marker_id.action = visualization_msgs::msg::Marker::ADD;
+        marker_id.scale.z = 0.1;
+        marker_id.color.r = 1.0;
+        marker_id.color.g = 1.0;
+        marker_id.color.b = 1.0;
+        marker_id.color.a = 1.0;
+        marker_id.pose.position.x = state(0);
+        marker_id.pose.position.y = state(1);
+        marker_id.pose.position.z = 0.5;
+        std::stringstream ss;
+        ss << "exist_prob:" << std::fixed << std::setprecision(0) << track.existence_probability * 100.0f << "%";
+        marker_id.text = ss.str();
+        marker_array->markers.push_back(marker_id);
+
+        continue;
+      }
       // Size and alpha based on covariance
       const float pos_std = std::sqrt((P(0, 0) + P(1, 1)) / 2.0f);
       const float scale = pos_std;

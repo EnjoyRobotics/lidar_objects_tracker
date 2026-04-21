@@ -40,19 +40,18 @@ public:
   {
     // Gating parameters
     node.declare_parameter<double>("lmb_tracker.gating.mahal2", 9.0);
-    node.declare_parameter<double>("lmb_tracker.gating.dist2", 3.0);
+    node.declare_parameter<double>("lmb_tracker.gating.dist", 3.0);
 
     // Basic tracking parameters
     node.declare_parameter<double>("lmb_tracker.birth_existence_prob", 0.05);
     node.declare_parameter<double>("lmb_tracker.death_existence_prob", 0.01);
-    node.declare_parameter<double>("lmb_tracker.survival_prob", 0.99);
     node.declare_parameter<double>("lmb_tracker.detection_prob", 0.6);
     node.declare_parameter<double>("lmb_tracker.clutter_intensity", 0.1);
     node.declare_parameter<double>("lmb_tracker.confirmation_existence_prob", 0.7);
 
     // Merging parameters
     node.declare_parameter<double>("lmb_tracker.merging.mahal2", 13.0);
-    node.declare_parameter<double>("lmb_tracker.merging.dist2", 3.0);
+    node.declare_parameter<double>("lmb_tracker.merging.dist", 3.0);
 
     // Kalman Filter parameters
     node.declare_parameter<double>("kalman_filter.pos_uncertainty", 0.2);
@@ -61,14 +60,12 @@ public:
 
     gate_mahal2_ =
       static_cast<float>(node.get_parameter("lmb_tracker.gating.mahal2").as_double());
-    dist2_threshold_ =
-      static_cast<float>(node.get_parameter("lmb_tracker.gating.dist2").as_double());
+    dist2_threshold_ = std::pow(
+      static_cast<float>(node.get_parameter("lmb_tracker.gating.dist").as_double()), 2.0);
     birth_existence_prob_ =
       static_cast<float>(node.get_parameter("lmb_tracker.birth_existence_prob").as_double());
     death_existence_prob_ =
       static_cast<float>(node.get_parameter("lmb_tracker.death_existence_prob").as_double());
-    survival_prob_ =
-      static_cast<float>(node.get_parameter("lmb_tracker.survival_prob").as_double());
     detection_prob_ =
       static_cast<float>(node.get_parameter("lmb_tracker.detection_prob").as_double());
     clutter_intensity_ =
@@ -78,8 +75,8 @@ public:
       node.get_parameter("lmb_tracker.confirmation_existence_prob").as_double());
     merge_mahal2_ =
       static_cast<float>(node.get_parameter("lmb_tracker.merging.mahal2").as_double());
-    merge_dist2_ =
-      static_cast<float>(node.get_parameter("lmb_tracker.merging.dist2").as_double());
+    merge_dist2_ = std::pow(
+      static_cast<float>(node.get_parameter("lmb_tracker.merging.dist").as_double()), 2.0);
     kf_pos_uncertainty_ =
       static_cast<float>(node.get_parameter("kalman_filter.pos_uncertainty").as_double());
     kf_vel_uncertainty_ =
@@ -105,30 +102,21 @@ public:
     // Step 1: Predict
     for (auto & [id, track] : tracks_) {
       track.kf->predict(dt);
-      track.existence_probability =
-        std::clamp(track.existence_probability * survival_prob_, 0.0f, 1.0f);
-
-      RCLCPP_DEBUG(
-        logger_, "Track ID: %u, Existence Probability: %.3f",
-        id, track.existence_probability);
     }
 
-    // Step 2: Association weights (LMB-style)
-    // w_ij = P_D * r * L_ij  (unnormalized, for gated measurements only)
-    // w_i0 = (1 - P_D) * r   (missed detection)
-    // Normalize each track's weights by: sum_j(w_ij) + w_i0 + clutter_intensity
-    struct TrackWeights
+    // Step 2: Compute association likelihoods for each track
+    // For Bernoulli update: r' = r*eta_D / ((1-r)*kappa + r*eta)
+    // where eta_D = sum_j(P_D * L_j), eta = (1-P_D) + eta_D, kappa = clutter_intensity
+    struct TrackAssociation
     {
-      std::map<size_t, float> w;  // measurement index -> unnormalized weight
-      float w0;                   // missed-detection unnormalized weight
-      float normalizer;           // denominator for this track
+      std::map<size_t, float> likelihood;  // measurement index -> P_D * L_j
+      float sum_likelihood;                // sum of P_D * L_j over gated measurements
     };
-    std::map<uint32_t, TrackWeights> all_weights;
+    std::map<uint32_t, TrackAssociation> all_assoc;
 
     for (auto & [id, track] : tracks_) {
-      TrackWeights tw;
-      tw.w0 = (1.0f - detection_prob_) * track.existence_probability;
-      float sum_w = 0.0f;
+      TrackAssociation ta;
+      float sum_likelihood = 0.0f;
 
       std::stringstream ss;
       ss << "Track " << id << " using measurements: ";
@@ -143,78 +131,112 @@ public:
           continue;
         }
         const float L = track.kf->likelihood(measurements[j]);
-        const float w = detection_prob_ * track.existence_probability * L;
-        tw.w[j] = w;
-        sum_w += w;
+        const float pd_likelihood = L;
+        ta.likelihood[j] = pd_likelihood;
+        sum_likelihood += pd_likelihood;
         used_measurements.insert(j);
         ss << j << " ";
       }
       RCLCPP_DEBUG(logger_, "%s", ss.str().c_str());
 
-      tw.normalizer = sum_w + tw.w0 + clutter_intensity_;
-      all_weights[id] = std::move(tw);
+      ta.sum_likelihood = sum_likelihood;
+      all_assoc[id] = std::move(ta);
     }
 
-    // Step 3: Update tracks
+    // Step 3: Update existence probability using Bernoulli filter formula
+    // if detected: r' = r * eta_D / ((1-r)*kappa + r*eta)
+    // if not detected: r' = r * (1-P_D)
     for (auto & [id, track] : tracks_) {
-      auto & tw = all_weights[id];
+      auto & ta = all_assoc[id];
 
-      // Normalized association probabilities
-      float sum_assoc = 0.0f;
-      for (auto & [j, w] : tw.w) {
-        w /= tw.normalizer;
-        sum_assoc += w;
+      const float r_old = track.existence_probability;
+      const float eta_D = ta.sum_likelihood;
+
+      float r_new = r_old;
+
+      if (eta_D > 1e-6f) {
+        const float eta = (1.0f - detection_prob_) + eta_D;
+        const float denominator =
+          (1.0f - r_old) * clutter_intensity_ + r_old * eta;
+
+        if (denominator > 1e-6f) {
+          r_new = r_old * eta_D / denominator;
+        }
+      } else {
+        // NO detection case → pure missed detection update
+        r_new = r_old * (1.0f - detection_prob_);
       }
-      const float w0_norm = tw.w0 / tw.normalizer;
 
-      // Existence update: r = sum of normalized association weights + w0
-      track.existence_probability = std::clamp(sum_assoc + w0_norm, 0.0f, 1.0f);
+      track.existence_probability = std::clamp(r_new, 0.0f, 1.0f);
 
-      // State update: weighted mixture of KF updates
-      if (sum_assoc > 0.0f) {
-        Eigen::Vector4f x_new = Eigen::Vector4f::Zero();
-        Eigen::Matrix4f P_new = Eigen::Matrix4f::Zero();
+      RCLCPP_DEBUG(
+        logger_,
+        "Track ID: %u, r_old=%.3f, eta_D=%.3f, r_new=%.3f, confirmed=%s",
+        id, r_old, eta_D, track.existence_probability,
+        track.confirmed ? "true" : "false");
+    }
 
-        // Include missed-detection component (predicted state, weighted by w0_norm)
-        x_new += w0_norm * track.kf->state;
-        P_new += w0_norm * track.kf->covariance;
+    // Step 4: State update (weighted mixture of KF updates)
+    for (auto & [id, track] : tracks_) {
+      auto & ta = all_assoc[id];
 
-        // Save predicted state/covariance before any KF update mutates it
-        const Eigen::Vector4f x_pred = track.kf->state;
-        const Eigen::Matrix4f P_pred = track.kf->covariance;
+      const float r = track.existence_probability;
 
-        for (auto & [j, w_norm] : tw.w) {
-          // Restore predicted state so each update starts from the same prior
-          track.kf->state = x_pred;
-          track.kf->covariance = P_pred;
-          track.kf->update(measurements[j]);
-          x_new += w_norm * track.kf->state;
-          P_new += w_norm * track.kf->covariance;
+      if (ta.sum_likelihood > 1e-6f) {
+
+        Eigen::Matrix4f P = track.kf->covariance;
+        Eigen::Vector4f x = track.kf->state;
+
+        Eigen::Matrix4f P_inv = P.inverse(); // (can later optimize)
+
+        Eigen::Vector4f x_update = Eigen::Vector4f::Zero();
+        Eigen::Matrix4f P_update = Eigen::Matrix4f::Zero();
+
+        float total_w = (1.0f - detection_prob_) + ta.sum_likelihood;
+
+        // missed detection component
+        x_update += (1.0f - detection_prob_) * x;
+        P_update += (1.0f - detection_prob_) * P;
+
+        // measurement contributions (NO KF re-run)
+        for (auto & [j, pd_likelihood] : ta.likelihood) {
+
+          Eigen::Vector2f z = measurements[j];
+
+          // innovation
+          Eigen::Vector2f y = z - track.kf->H() * x;
+          Eigen::Matrix2f S = track.kf->H() * P * track.kf->H().transpose() +
+                              track.kf->R();
+
+          Eigen::Matrix<float, 4, 2> K =
+            P * track.kf->H().transpose() * S.inverse();
+
+          Eigen::Vector4f x_j = x + K * y;
+          Eigen::Matrix4f P_j =
+            (Eigen::Matrix4f::Identity() - K * track.kf->H()) * P;
+
+          x_update += pd_likelihood * x_j;
+          P_update += pd_likelihood * P_j;
         }
 
-        // Normalize (sum_assoc + w0_norm should already equal r, which is <= 1;
-        // divide to guard against floating-point drift)
-        const float total_w = sum_assoc + w0_norm;
-        if (total_w > 1e-6f) {
-          x_new /= total_w;
-          P_new /= total_w;
-        }
+        x_update /= total_w;
+        P_update /= total_w;
 
-        track.kf->state = x_new;
-        track.kf->covariance = P_new;
+        track.kf->state = x_update;
+        track.kf->covariance = P_update;
 
         RCLCPP_DEBUG(
-          logger_, "Updated Track ID: %u, New Existence Probability: %.3f",
-          id, track.existence_probability);
+          logger_, "Updated Track ID: %u, state=(%.2f, %.2f), r=%.3f",
+          id, track.kf->state(0), track.kf->state(1), track.existence_probability);
       } else {
         // Missed detection: keep predicted state as-is
         RCLCPP_DEBUG(
-          logger_, "Missed detection for Track ID: %u, New Existence Probability: %.3f",
+          logger_, "Missed detection for Track ID: %u, r=%.3f",
           id, track.existence_probability);
       }
     }
 
-    // Step 4: Births — unassigned measurements spawn new tracks
+    // Step 5: Births — unassigned measurements spawn new tracks
     for (size_t i = 0; i < measurements.size(); ++i) {
       if (used_measurements.count(i)) {
         continue;
@@ -246,7 +268,7 @@ public:
         new_id, meas(0), meas(1));
     }
 
-    // Step 5: Merge nearby confirmed tracks — keep older, transfer existence probability
+    // Step 6: Merge nearby confirmed tracks — keep older, transfer existence probability
     if (merge_mahal2_ > 0.0f || merge_dist2_ > 0.0f) {
       std::set<uint32_t> merged_away;
       for (auto it_a = tracks_.begin(); it_a != tracks_.end(); ++it_a) {
@@ -297,7 +319,7 @@ public:
       }
     }
 
-    // Step 6: Prune tracks with low existence probability; clamp excessive covariance
+    // Step 7: Prune tracks with low existence probability
     std::vector<uint32_t> tracks_to_erase;
     for (const auto & [id, track] : tracks_) {
       if (track.existence_probability < death_existence_prob_) {
@@ -309,7 +331,7 @@ public:
       tracks_.erase(id);
     }
 
-    // Step 7: Confirm tracks that crossed the threshold
+    // Step 8: Confirm tracks that crossed the threshold
     for (auto & [id, track] : tracks_) {
       if (!track.confirmed && track.existence_probability >= confirmation_existence_prob_) {
         track.confirmed = true;
@@ -333,7 +355,6 @@ private:
   float clutter_intensity_;  // lambda_c: expected number of clutter measurements per unit volume
   float birth_existence_prob_;  // Keep low so multiple confirmations needed
   float death_existence_prob_;
-  float survival_prob_;  // P(existing object survives next step)
   float detection_prob_;  // P(existing object is detected)
   float confirmation_existence_prob_;  // Existence probability needed to confirm a track
   float merge_mahal2_;  // Max squared Mahalanobis distance (state space) for merging two tracks
