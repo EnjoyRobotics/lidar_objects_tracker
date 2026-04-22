@@ -103,12 +103,12 @@ public:
     RCLCPP_DEBUG(logger_, "===============================");
     RCLCPP_DEBUG(logger_, "Updating tracks with dt: %.3f s", dt);
 
-    // Step 1: Predict
+    // Predict
     for (auto & [id, track] : tracks_) {
       track.kf->predict(dt);
     }
 
-    // Step 2: Compute association likelihoods for each track
+    // Compute association likelihoods for each track
     // For Bernoulli update: r' = r*eta_D / ((1-r)*kappa + r*eta)
     // where eta_D = sum_j(P_D * L_j), eta = (1-P_D) + eta_D, kappa = clutter_intensity
     struct TrackAssociation
@@ -147,7 +147,7 @@ public:
       all_assoc[id] = std::move(ta);
     }
 
-    // Step 3: Update existence probability using Bernoulli filter formula
+    // Update existence probability using Bernoulli filter formula
     // if detected: r' = r * eta_D / ((1-r)*kappa + r*eta)
     // if not detected: r' = r * (1-P_D)
     for (auto & [id, track] : tracks_) {
@@ -180,7 +180,7 @@ public:
         track.confirmed ? "true" : "false");
     }
 
-    // Step 4: State update (weighted mixture of KF updates)
+    // State update (weighted mixture of KF updates)
     for (auto & [id, track] : tracks_) {
       auto & ta = all_assoc[id];
 
@@ -240,7 +240,7 @@ public:
       }
     }
 
-    // Step 5: Births — unassigned measurements spawn new tracks
+    // Births — unassigned measurements spawn new tracks
     for (size_t i = 0; i < measurements.size(); ++i) {
       if (used_measurements.count(i)) {
         continue;
@@ -272,7 +272,7 @@ public:
         new_id, meas(0), meas(1));
     }
 
-    // Step 6: Merge nearby confirmed tracks — keep older, transfer existence probability
+    // Merge nearby confirmed tracks — keep older, transfer existence probability
     if (merge_mahal2_ > 0.0f || merge_dist2_ > 0.0f) {
       std::set<uint32_t> merged_away;
       for (auto it_a = tracks_.begin(); it_a != tracks_.end(); ++it_a) {
@@ -323,7 +323,7 @@ public:
       }
     }
 
-    // Step 7: Prune tracks with low existence probability
+    // Prune tracks with low existence probability
     std::vector<uint32_t> tracks_to_erase;
     for (const auto & [id, track] : tracks_) {
       if (track.existence_probability < death_existence_prob_) {
@@ -335,7 +335,7 @@ public:
       tracks_.erase(id);
     }
 
-    // Step 8: Confirm tracks that crossed the threshold; mark dynamic if velocity exceeds threshold
+    // Confirm tracks that crossed the threshold; mark dynamic if velocity exceeds threshold
     for (auto & [id, track] : tracks_) {
       if (!track.confirmed && track.existence_probability >= confirmation_existence_prob_) {
         track.confirmed = true;

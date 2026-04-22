@@ -110,7 +110,7 @@ public:
     const std_msgs::msg::Header & header,
     const std::vector<Eigen::Vector2f> & dynamic_positions = {})
   {
-    // --- 1. Mark which cells were hit this scan ---
+    // Mark which cells were hit this scan
     std::vector<bool> hit(grid_size_ * grid_size_, false);
 
     for (const auto & pt : pc.points_) {
@@ -121,7 +121,7 @@ public:
       }
     }
 
-    // --- 2. Mark cells under dynamic tracks; their probabilities will not be updated ---
+    // Mark cells under dynamic tracks; their probabilities will not be updated
     const int dynamic_cells =
       static_cast<int>(std::ceil(dynamic_track_clear_radius_ / resolution_));
     std::vector<bool> frozen(grid_size_ * grid_size_, false);
@@ -154,10 +154,10 @@ public:
     }
     is_first_scan_ = false;
 
-    // --- 3. Inflate thresholded grid: neighbours of occupied cells are also occupied ---
+    // Inflate thresholded grid: neighbours of occupied cells are also occupied
     const std::vector<bool> inflated = inflate(grid_, threshold_);
 
-    // --- 4. Filter out points whose cell is static after inflation ---
+    // Filter out points whose cell is static after inflation
     open3d::geometry::PointCloud filtered;
     for (const auto & pt : pc.points_) {
       const int ix = worldToIndex(static_cast<float>(pt.x()));
@@ -167,7 +167,7 @@ public:
       }
     }
 
-    // --- 5. Optionally publish grid ---
+    // Optionally publish grid
     if (publish_grid_) {
       publishGrid(header, inflated);
     }
