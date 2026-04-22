@@ -69,12 +69,14 @@ private:
     std::vector<Eigen::Vector2f> centroids;
     std::vector<std::optional<open3d::geometry::AxisAlignedBoundingBox>> bboxes;
     std::map<uint32_t, Track> tracks;
+    std::optional<Eigen::Vector2f> sensor_origin;
     rclcpp::Time stamp{0, 0, RCL_SYSTEM_TIME};
     bool valid{false};
   };
   VisualizationState vis_state_;
 
   std::unique_ptr<TrackerBase> tracker_;
+  std::optional<Eigen::Vector2f> sensor_origin_;  // sensor position in target_frame_, updated each scan
 
   // Parameters
   std::string target_frame_;

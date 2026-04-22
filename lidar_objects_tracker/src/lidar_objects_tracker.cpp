@@ -113,6 +113,7 @@ void ObjectsTracker::scanCallback(
     }
     Eigen::Matrix4d transform = tf2::transformToEigen(tf_target_frame.transform).matrix();
     pc = pc.Transform(transform);
+    sensor_origin_ = transform.block<2, 1>(0, 3).cast<float>();
   }
 
   // Static background subtraction (in target frame)
@@ -127,7 +128,7 @@ void ObjectsTracker::scanCallback(
 
     std_msgs::msg::Header target_header = msg->header;
     target_header.frame_id = target_frame_;
-    pc = static_bg_subtractor_->filter(pc, target_header, dynamic_positions);
+    pc = static_bg_subtractor_->filter(pc, target_header, dynamic_positions, sensor_origin_);
 
     if (pc.points_.size() == 0) {
       return;
@@ -227,6 +228,7 @@ void ObjectsTracker::scanCallback(
     vis_state_.centroids = centroids;
     vis_state_.bboxes = bboxes;
     vis_state_.tracks = tracks;
+    vis_state_.sensor_origin = sensor_origin_;
     vis_state_.stamp = this->now();
     vis_state_.valid = true;
   }
@@ -251,6 +253,29 @@ void ObjectsTracker::visualizationTimerCallback()
     const auto & bboxes = vis_state_.bboxes;
     const auto & tracks = vis_state_.tracks;
     const rclcpp::Time & stamp = vis_state_.stamp;
+
+    // Sensor origin
+    if (vis_state_.sensor_origin.has_value()) {
+      visualization_msgs::msg::Marker marker_sensor;
+      marker_sensor.header.frame_id = target_frame_;
+      marker_sensor.header.stamp = stamp;
+      marker_sensor.ns = "sensor_origin";
+      marker_sensor.id = 0;
+      marker_sensor.type = visualization_msgs::msg::Marker::SPHERE;
+      marker_sensor.action = visualization_msgs::msg::Marker::ADD;
+      marker_sensor.pose.position.x = vis_state_.sensor_origin->x();
+      marker_sensor.pose.position.y = vis_state_.sensor_origin->y();
+      marker_sensor.pose.position.z = 0.0;
+      marker_sensor.pose.orientation.w = 1.0;
+      marker_sensor.scale.x = 0.15;
+      marker_sensor.scale.y = 0.15;
+      marker_sensor.scale.z = 0.15;
+      marker_sensor.color.r = 1.0;
+      marker_sensor.color.g = 1.0;
+      marker_sensor.color.b = 0.0;
+      marker_sensor.color.a = 1.0;
+      marker_array->markers.push_back(marker_sensor);
+    }
 
     // Cluster centroids and bounding boxes
     visualization_msgs::msg::Marker marker_centroids;
@@ -452,9 +477,18 @@ void ObjectsTracker::visualizationTimerCallback()
       marker_array->markers.push_back(marker_unconfirmed_text);
     }
 
-  }
+    // Frozen disk and shadow from static background subtractor
+    if (enable_static_bg_subtraction_) {
+      std_msgs::msg::Header bg_header;
+      bg_header.frame_id = target_frame_;
+      bg_header.stamp = stamp;
+      for (auto & m : static_bg_subtractor_->getFrozenMaskMarkers(bg_header)) {
+        marker_array->markers.push_back(std::move(m));
+      }
+    }
 
-  marker_pub_->publish(std::move(marker_array));
+    marker_pub_->publish(std::move(marker_array));
+  }
 }
 
 open3d::geometry::PointCloud ObjectsTracker::laserScanToPointCloud(
