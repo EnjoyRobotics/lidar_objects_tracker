@@ -28,13 +28,15 @@ public:
    * @param pos_uncertainty Position measurement uncertainty (std, used for P0 and R)
    * @param vel_uncertainty Velocity process uncertainty (std, used for P0)
    * @param acc_uncertainty Acceleration process uncertainty (std, used for Q)
+   * @param vel_decay Multiplicative velocity damping applied each predict step (0=full stop, 1=no decay)
    */
   KalmanFilter2D(
     const Eigen::Vector4f & x0,
     float pos_uncertainty,
     float vel_uncertainty,
-    float acc_uncertainty)
-  : state(x_), covariance(P_)
+    float acc_uncertainty,
+    float vel_decay = 1.0f)
+  : state(x_), covariance(P_), vel_decay_(vel_decay)
   {
     float pos_var = pos_uncertainty * pos_uncertainty;
     float vel_var = vel_uncertainty * vel_uncertainty;
@@ -180,7 +182,8 @@ private:
   Eigen::Matrix2f R_;  // Measurement noise covariance
   Eigen::Matrix<float, 2, 4> H_;  // Measurement matrix
 
-  float acc_var_;  // Acceleration variance for process noise
+  float acc_var_;      // Acceleration variance for process noise
+  float vel_decay_;    // Multiplicative damping on velocity rows of F
 
   inline Eigen::Matrix4f getF(float dt)
   {
@@ -188,8 +191,8 @@ private:
     F <<
       1, 0, dt, 0,
       0, 1, 0, dt,
-      0, 0, 1, 0,
-      0, 0, 0, 1;
+      0, 0, vel_decay_, 0,
+      0, 0, 0, vel_decay_;
     return F;
   }
 

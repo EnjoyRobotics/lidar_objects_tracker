@@ -58,6 +58,7 @@ public:
     node.declare_parameter<double>("kalman_filter.pos_uncertainty", 0.2);
     node.declare_parameter<double>("kalman_filter.vel_uncertainty", 0.4);
     node.declare_parameter<double>("kalman_filter.acc_uncertainty", 1.0);
+    node.declare_parameter<double>("kalman_filter.vel_decay", 1.0);
 
     gate_mahal2_ =
       static_cast<float>(node.get_parameter("lmb_tracker.gating.mahal2").as_double());
@@ -87,6 +88,8 @@ public:
       static_cast<float>(node.get_parameter("kalman_filter.vel_uncertainty").as_double());
     kf_acc_uncertainty_ =
       static_cast<float>(node.get_parameter("kalman_filter.acc_uncertainty").as_double());
+    kf_vel_decay_ =
+      static_cast<float>(node.get_parameter("kalman_filter.vel_decay").as_double());
   }
 
   void updateTracks(const std::vector<Eigen::Vector2f> & measurements) override
@@ -253,7 +256,8 @@ public:
         x0,
         kf_pos_uncertainty_,
         kf_vel_uncertainty_,
-        kf_acc_uncertainty_);
+        kf_acc_uncertainty_,
+        kf_vel_decay_);
 
       uint32_t new_id = 0;
       while (tracks_.find(new_id) != tracks_.end()) {
@@ -373,6 +377,7 @@ private:
   float kf_pos_uncertainty_;  // for Kalman Filter initialization, m
   float kf_vel_uncertainty_;  // for Kalman Filter initialization, m/s
   float kf_acc_uncertainty_;  // for Kalman Filter initialization, m/s^2
+  float kf_vel_decay_;        // multiplicative velocity damping per predict step (0=full stop, 1=no decay)
 };
 
 }  // namespace lidar_objects_tracker

@@ -47,3 +47,4 @@ objects_tracker_node:
       pos_uncertainty: 0.2  # initial position uncertainty (m)
       vel_uncertainty: 0.6  # initial velocity uncertainty (m/s)
       acc_uncertainty: 1.4  # initial acceleration uncertainty (m/s²)
+      vel_decay: 0.9        # multiplicative velocity damping per predict step (0=full stop, 1=no decay)
