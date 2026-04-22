@@ -26,6 +26,7 @@ struct Track
   std::shared_ptr<KalmanFilter2D> kf;
   float existence_probability;
   bool confirmed = false;
+  bool dynamic = false;
   rclcpp::Time birth_time;
 };
 

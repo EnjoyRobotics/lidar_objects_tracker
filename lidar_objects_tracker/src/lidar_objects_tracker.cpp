@@ -117,9 +117,17 @@ void ObjectsTracker::scanCallback(
 
   // Static background subtraction (in target frame)
   if (enable_static_bg_subtraction_) {
+    // Collect positions of confirmed dynamic tracks from the previous update
+    std::vector<Eigen::Vector2f> dynamic_positions;
+    for (const auto & [id, track] : tracker_->getTracks()) {
+      if (track.confirmed && track.dynamic) {
+        dynamic_positions.emplace_back(track.kf->state(0), track.kf->state(1));
+      }
+    }
+
     std_msgs::msg::Header target_header = msg->header;
     target_header.frame_id = target_frame_;
-    pc = static_bg_subtractor_->filter(pc, target_header);
+    pc = static_bg_subtractor_->filter(pc, target_header, dynamic_positions);
 
     if (pc.points_.size() == 0) {
       return;

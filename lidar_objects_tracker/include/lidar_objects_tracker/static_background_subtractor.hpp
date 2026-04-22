@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+#include <Eigen/Core>
+
 namespace lidar_objects_tracker
 {
 
@@ -56,6 +58,7 @@ public:
     node.declare_parameter<bool>("static_bg_subtractor.publish_grid", false);
     node.declare_parameter<double>("static_bg_subtractor.grid_size", 10.0);
     node.declare_parameter<bool>("static_bg_subtractor.initialize_with_first_scan", true);
+    node.declare_parameter<double>("static_bg_subtractor.dynamic_track_clear_radius", 0.5);
 
     resolution_ =
       static_cast<float>(node.get_parameter("static_bg_subtractor.resolution").as_double());
@@ -71,6 +74,9 @@ public:
       static_cast<float>(node.get_parameter("static_bg_subtractor.grid_size").as_double());
     initialize_with_first_scan_ =
       node.get_parameter("static_bg_subtractor.initialize_with_first_scan").as_bool();
+    dynamic_track_clear_radius_ =
+      static_cast<float>(
+        node.get_parameter("static_bg_subtractor.dynamic_track_clear_radius").as_double());
 
     // Grid dimensions: centred at origin
     grid_size_ = static_cast<int>(std::ceil(grid_world_size_ / resolution_));
@@ -94,13 +100,15 @@ public:
    * The input point cloud must already be in the sensor/local frame because
    * the grid is maintained in that same frame (robot-centric).
    *
-   * @param pc     Input point cloud (local frame, z ignored)
-   * @param header Header from the original LaserScan (for grid publication stamp / frame)
-   * @return       Filtered point cloud with static background points removed
+   * @param pc                 Input point cloud (local frame, z ignored)
+   * @param header             Header from the original LaserScan (for grid publication stamp / frame)
+   * @param dynamic_positions  Positions of confirmed dynamic tracks; cells under them are frozen
+   * @return                   Filtered point cloud with static background points removed
    */
   open3d::geometry::PointCloud filter(
     const open3d::geometry::PointCloud & pc,
-    const std_msgs::msg::Header & header)
+    const std_msgs::msg::Header & header,
+    const std::vector<Eigen::Vector2f> & dynamic_positions = {})
   {
     // --- 1. Mark which cells were hit this scan ---
     std::vector<bool> hit(grid_size_ * grid_size_, false);
@@ -113,8 +121,29 @@ public:
       }
     }
 
-    // --- 2. Update probabilities for every cell ---
+    // --- 2. Mark cells under dynamic tracks; their probabilities will not be updated ---
+    const int dynamic_cells =
+      static_cast<int>(std::ceil(dynamic_track_clear_radius_ / resolution_));
+    std::vector<bool> frozen(grid_size_ * grid_size_, false);
+    for (const auto & pos : dynamic_positions) {
+      const int cx = worldToIndex(pos.x());
+      const int cy = worldToIndex(pos.y());
+      for (int dy = -dynamic_cells; dy <= dynamic_cells; ++dy) {
+        for (int dx = -dynamic_cells; dx <= dynamic_cells; ++dx) {
+          const int nx = cx + dx;
+          const int ny = cy + dy;
+          if (isValid(nx, ny)) {
+            frozen[cellIndex(nx, ny)] = true;
+          }
+        }
+      }
+    }
+
+    // Update probabilities, skipping frozen cells
     for (int i = 0; i < grid_size_ * grid_size_; ++i) {
+      if (frozen[i]) {
+        continue;
+      }
       if (hit[i]) {
         grid_[i] = is_first_scan_ && initialize_with_first_scan_
           ? 1.0f
@@ -220,6 +249,7 @@ private:
   bool publish_grid_;
   float grid_world_size_;  // full width/height of the grid in metres
   bool initialize_with_first_scan_;
+  float dynamic_track_clear_radius_;  // radius (m) around dynamic tracks where probability updates are frozen
   bool is_first_scan_{true};
 
   int grid_size_;                // cells per axis

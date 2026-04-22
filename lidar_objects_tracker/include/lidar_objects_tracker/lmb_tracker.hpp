@@ -48,6 +48,7 @@ public:
     node.declare_parameter<double>("lmb_tracker.detection_prob", 0.6);
     node.declare_parameter<double>("lmb_tracker.clutter_intensity", 0.1);
     node.declare_parameter<double>("lmb_tracker.confirmation_existence_prob", 0.7);
+    node.declare_parameter<double>("lmb_tracker.dynamic_velocity_threshold", 0.3);
 
     // Merging parameters
     node.declare_parameter<double>("lmb_tracker.merging.mahal2", 13.0);
@@ -73,6 +74,9 @@ public:
     confirmation_existence_prob_ =
       static_cast<float>(
       node.get_parameter("lmb_tracker.confirmation_existence_prob").as_double());
+    dynamic_velocity_threshold_ =
+      static_cast<float>(
+      node.get_parameter("lmb_tracker.dynamic_velocity_threshold").as_double());
     merge_mahal2_ =
       static_cast<float>(node.get_parameter("lmb_tracker.merging.mahal2").as_double());
     merge_dist2_ = std::pow(
@@ -331,10 +335,16 @@ public:
       tracks_.erase(id);
     }
 
-    // Step 8: Confirm tracks that crossed the threshold
+    // Step 8: Confirm tracks that crossed the threshold; mark dynamic if velocity exceeds threshold
     for (auto & [id, track] : tracks_) {
       if (!track.confirmed && track.existence_probability >= confirmation_existence_prob_) {
         track.confirmed = true;
+      }
+      if (track.confirmed) {
+        const float speed2 = track.kf->state.tail<2>().squaredNorm();
+        if (speed2 >= dynamic_velocity_threshold_ * dynamic_velocity_threshold_) {
+          track.dynamic = true;
+        }
       }
     }
   }
@@ -357,6 +367,7 @@ private:
   float death_existence_prob_;
   float detection_prob_;  // P(existing object is detected)
   float confirmation_existence_prob_;  // Existence probability needed to confirm a track
+  float dynamic_velocity_threshold_;   // Speed (m/s) above which a confirmed track is marked dynamic
   float merge_mahal2_;  // Max squared Mahalanobis distance (state space) for merging two tracks
   float merge_dist2_;  // Max squared euclidean distance (position only) for merging two tracks
   float kf_pos_uncertainty_;  // for Kalman Filter initialization, m
